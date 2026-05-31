@@ -41,6 +41,8 @@ public class MainActivity extends AppCompatActivity {
     private final StringBuilder log = new StringBuilder();
     private int audioChunks;
     private long audioBytes;
+    private int audioPeak;       // max |sample| seen — tells silence vs real audio
+    private long audioNonZero;   // count of non-zero samples
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -85,11 +87,13 @@ public class MainActivity extends AppCompatActivity {
             logLine("Default engine: " + engines);
             tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
                 @Override public void onStart(String id) {
-                    audioChunks = 0; audioBytes = 0;
+                    audioChunks = 0; audioBytes = 0; audioPeak = 0; audioNonZero = 0;
                     logLine("onStart(" + id + ")");
                 }
                 @Override public void onDone(String id) {
-                    logLine("onDone(" + id + ") chunks=" + audioChunks + " bytes=" + audioBytes);
+                    logLine("onDone(" + id + ") chunks=" + audioChunks + " bytes=" + audioBytes
+                            + " peak=" + audioPeak + " nonzero=" + audioNonZero
+                            + (audioPeak == 0 ? " <- ALL SILENCE" : ""));
                 }
                 @Override public void onError(String id) {
                     logLine("onError(" + id + ")");
@@ -100,7 +104,15 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void onAudioAvailable(String id, byte[] audio) {
                     audioChunks++;
-                    audioBytes += (audio == null ? 0 : audio.length);
+                    if (audio == null) return;
+                    audioBytes += audio.length;
+                    // Interpret as little-endian 16-bit PCM; track peak amplitude.
+                    for (int i = 0; i + 1 < audio.length; i += 2) {
+                        int s = (short) ((audio[i] & 0xff) | (audio[i + 1] << 8));
+                        if (s < 0) s = -s;
+                        if (s > audioPeak) audioPeak = s;
+                        if (s != 0) audioNonZero++;
+                    }
                 }
                 @Override
                 public void onBeginSynthesis(String id, int sampleRateInHz,
