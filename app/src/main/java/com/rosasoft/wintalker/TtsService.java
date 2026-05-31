@@ -9,6 +9,7 @@ import android.speech.tts.SynthesisCallback;
 import android.speech.tts.SynthesisRequest;
 import android.speech.tts.TextToSpeechService;
 
+import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -75,10 +76,7 @@ public class TtsService extends TextToSpeechService {
     // --- IO helpers --------------------------------------------------------
     private byte[] readFile(String filename) {
         try (FileInputStream inputStream = openFileInput(filename)) {
-            int size = inputStream.available();
-            byte[] buf = new byte[size];
-            inputStream.read(buf);
-            return buf;
+            return readFully(inputStream);
         } catch (IOException e) {
             return null;
         }
@@ -86,13 +84,29 @@ public class TtsService extends TextToSpeechService {
 
     private byte[] readAsset(String asset) {
         try (InputStream stream = getAssets().open(asset)) {
-            int size = stream.available();
-            byte[] buf = new byte[size];
-            stream.read(buf);
-            return buf;
+            return readFully(stream);
         } catch (IOException e) {
             return null;
         }
+    }
+
+    /**
+     * Reads a stream to completion. Neither {@link InputStream#available()} nor a
+     * single {@link InputStream#read(byte[])} guarantees the full content — for
+     * compressed APK assets (e.g. the ~3.6 MB Gintaras.dta voice database) a single
+     * read returns only the first decompressed chunk, leaving the rest as zero bytes.
+     * That produced correctly-sized but ALL-SILENT audio: the file header/duration
+     * index loaded while the waveform samples deeper in the file did not. Loop until
+     * EOF so the engine receives every byte.
+     */
+    private byte[] readFully(InputStream stream) throws IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream(Math.max(stream.available(), 8192));
+        byte[] chunk = new byte[16384];
+        int n;
+        while ((n = stream.read(chunk)) != -1) {
+            out.write(chunk, 0, n);
+        }
+        return out.toByteArray();
     }
 
     // --- Engine lifecycle --------------------------------------------------

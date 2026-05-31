@@ -24,6 +24,12 @@ android {
         }
     }
 
+    // Keep the voice data and engine bytecode uncompressed in the APK so they are
+    // read back in full (defends against partial-read bugs and speeds up loading).
+    androidResources {
+        noCompress 'dta', 'dct', 'rul', 'bin'
+    }
+
     // We ship prebuilt/ported engine .so directly under src/main/jniLibs.
     sourceSets {
         main {
