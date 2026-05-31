@@ -31,4 +31,20 @@
     <string name="delete">Ištrinti žodį</string>
     <string name="cancel">Atšaukti</string>
     <string name="dict">stdlit.dct</string>
+
+    <!-- New in-app UI -->
+    <string name="main_intro">Įveskite tekstą ir paspauskite „Kalbėti", kad išgirstumėte lietuvišką Gintaro balsą.</string>
+    <string name="main_hint">Tekstas</string>
+    <string name="speak">Kalbėti</string>
+    <string name="stop">Stop</string>
+    <string name="speech_rate">Kalbėjimo greitis</string>
+    <string name="open_settings">Atidaryti nustatymus</string>
+    <string name="tts_loading">Kraunamas sintezatorius…</string>
+    <string name="tts_ready">Sintezatorius paruoštas.</string>
+    <string name="tts_no_lang">Lietuvių balsas neprieinamas.</string>
+    <string name="tts_failed">Nepavyko paleisti sintezatoriaus.</string>
+    <string name="tts_not_ready">Sintezatorius dar nepasiruošęs.</string>
+    <string name="cat_voice">Balsas</string>
+    <string name="cat_speech">Kalbėjimas</string>
+    <string name="cat_dictionary">Žodynas</string>
 </resources>

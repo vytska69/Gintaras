@@ -30,11 +30,12 @@ def main():
     o = TranscrOracle(lib)
     o.call_named("init_transcr")
 
-    print("# word\tnormalized\tphonemes(space-separated)\treturn")
+    print("# word\tnormalized\tnorm_cp1257_hex\tphonemes(space-separated)\treturn")
     for w in words:
         norm, raw, n = o.transcribe(w, enc="cp1257")
         phon = " ".join(t for t in raw.split("\n") if t)
-        print(f"{w}\t{norm}\t{phon}\t{n}")
+        norm_hex = norm.encode("cp1257", "replace").hex()
+        print(f"{w}\t{norm}\t{norm_hex}\t{phon}\t{n}")
 
 
 if __name__ == "__main__":

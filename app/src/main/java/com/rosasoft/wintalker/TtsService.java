@@ -5,7 +5,6 @@ import android.content.SharedPreferences;
 import android.content.res.AssetManager;
 import android.content.res.Resources;
 import android.preference.PreferenceManager;
-import android.provider.Settings;
 import android.speech.tts.SynthesisCallback;
 import android.speech.tts.SynthesisRequest;
 import android.speech.tts.TextToSpeechService;
@@ -167,8 +166,9 @@ public class TtsService extends TextToSpeechService {
         this.mCurrentLanguage = new String[]{this.LANG, this.COUNTRY, ""};
         Resources res = getResources();
         this.uptime = res.getInteger(R.integer.uptime);
-        this.expirytext = getString(R.string.expiry_text);
-        this.expiry = this.expirytext.getBytes(java.nio.charset.StandardCharsets.UTF_16);
+        // Licensing dropped: no activation message, no device-bound expiry token.
+        this.expirytext = "";
+        this.expiry = new byte[0];
         create();
     }
 
@@ -228,9 +228,6 @@ public class TtsService extends TextToSpeechService {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         this.rate = request.getSpeechRate();
         this.pitch = request.getPitch();
-        this.act = prefs.getString(getString(R.string.imei_choice), "");
-        this.imei = prefs.getString(getString(R.string.imei_value), "");
-        this.number = prefs.getString(getString(R.string.number_value), "");
         this.punc = parseInt(prefs.getString("punctuation", "0"), 0);
         this.numgroup = parseInt(prefs.getString("numgroup", "16"), 16);
         this.pitchrel = parseInt(prefs.getString("pitch", "100"), 100);
@@ -239,23 +236,11 @@ public class TtsService extends TextToSpeechService {
         this.pause_sentence = parseInt(prefs.getString("pause_sentence", "100"), 100);
         this.use_dictionary = prefs.getBoolean("use_dictionary", true);
 
-        // Device identifiers were used by the original licensing path. On modern
-        // Android these APIs are removed/restricted; guard defensively and fall
-        // back to ANDROID_ID so synthesis is never blocked by a thrown exception.
-        if (this.numcalls > 100) {
-            try {
-                String androidId = Settings.Secure.getString(
-                        getApplicationContext().getContentResolver(), Settings.Secure.ANDROID_ID);
-                if (androidId != null) {
-                    if (this.imei == null || this.imei.isEmpty()) {
-                        this.imei = androidId;
-                    }
-                }
-            } catch (Exception ignored) {
-            }
-            this.numcalls = 100;
-        }
-        this.numcalls++;
+        // Licensing dropped: no IMEI / SIM / activation collection. These ABI
+        // fields are kept (the native layer may look them up) but stay empty.
+        this.act = "";
+        this.imei = "";
+        this.number = "";
 
         this.textbuffer = text.toLowerCase().getBytes(java.nio.charset.StandardCharsets.UTF_16);
 
