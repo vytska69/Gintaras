@@ -31,6 +31,17 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Install NDK and 32-bit host toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-multilib lib32gcc-s1 build-essential
+          yes | sdkmanager "ndk;26.3.11579264"
+
+      - name: Build modern LuaJIT (armeabi-v7a) and matching main.bin
+        run: |
+          chmod +x tools/ci_build_luajit.sh
+          tools/ci_build_luajit.sh "$ANDROID_HOME/ndk/26.3.11579264"
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
