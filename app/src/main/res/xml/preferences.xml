@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <ListPreference
+        android:defaultValue="@string/default_voice"
+        android:entries="@array/listArray"
+        android:entryValues="@array/listValues"
+        android:key="@string/voice_lang"
+        android:summary="@string/default_voice"
+        android:title="@string/voice_choice" />
+    <ListPreference
+        android:defaultValue="0"
+        android:entries="@array/puncArray"
+        android:entryValues="@array/puncValues"
+        android:key="punctuation"
+        android:title="@string/punctuation" />
+    <ListPreference
+        android:defaultValue="1"
+        android:entries="@array/numArray"
+        android:entryValues="@array/numValues"
+        android:key="numgroup"
+        android:title="@string/number_processing" />
+    <ListPreference
+        android:defaultValue="100"
+        android:entries="@array/pitchArray"
+        android:entryValues="@array/pitchValues"
+        android:key="pitch"
+        android:title="@string/pitch" />
+    <ListPreference
+        android:defaultValue="100"
+        android:entries="@array/pauseArray"
+        android:entryValues="@array/pausewordValues"
+        android:key="pause_word"
+        android:title="@string/pause_word" />
+    <ListPreference
+        android:defaultValue="100"
+        android:entries="@array/pauseArray"
+        android:entryValues="@array/pausesentenceValues"
+        android:key="pause_sentence"
+        android:title="@string/pause_sentence" />
+    <CheckBoxPreference
+        android:defaultValue="true"
+        android:key="use_dictionary"
+        android:title="@string/use_dictionary" />
+    <Preference
+        android:key="modify_dictionary"
+        android:summary=""
+        android:title="@string/modify_dictionary" />
+    <EditTextPreference
+        android:clickable="false"
+        android:key="@string/imei_value"
+        android:selectable="false"
+        android:title="@string/imei" />
+    <EditTextPreference
+        android:clickable="false"
+        android:key="@string/number_value"
+        android:selectable="false"
+        android:title="@string/number" />
+    <EditTextPreference
+        android:digits="0123456789abcdef"
+        android:dialogTitle="@string/act_num"
+        android:key="@string/imei_choice"
+        android:summary="@string/imei"
+        android:title="@string/activate" />
+</PreferenceScreen>

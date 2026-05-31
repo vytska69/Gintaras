@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">WinTalker Voice</string>
+    <string name="general_settings">Nustatymai</string>
+    <string name="sample_text">Tai kalbos sintezės lietuvių pavyzdys</string>
+    <string name="available_voices">lit-LTU</string>
+    <string name="country">LTU</string>
+    <string name="lang">lit</string>
+    <string name="expiry_text">Prašome suaktyvinti licenciją</string>
+    <string name="default_voice">Gintaras</string>
+    <string name="imei">IMEI:</string>
+    <string name="number">SIM ID:</string>
+    <string name="act_num">Aktyvinimo numeris</string>
+    <string name="activate">Aktyvinimas</string>
+    <string name="voice">Voice:</string>
+    <string name="voice_choice">Balsai</string>
+    <string name="imei_choice">imei_lt</string>
+    <string name="imei_value">imei_val</string>
+    <string name="number_value">number_val</string>
+    <string name="voice_lang">voice_lt</string>
+    <string name="punctuation">Skyryba</string>
+    <string name="number_processing">Skaičių įgarsinimas</string>
+    <string name="pitch">Tembras</string>
+    <string name="pause_word">Pauzė tarp žodžių</string>
+    <string name="pause_sentence">Pauzė tarp sakinių</string>
+    <string name="act_file">wtvakey.txt</string>
+    <string name="use_dictionary">Naudoti žodyną</string>
+    <string name="modify_dictionary">Keisti žodyną</string>
+    <string name="add">Pridėti žodį</string>
+    <string name="modify">Keisti žodį</string>
+    <string name="delete">Ištrinti žodį</string>
+    <string name="cancel">Atšaukti</string>
+    <string name="dict">stdlit.dct</string>
+</resources>
