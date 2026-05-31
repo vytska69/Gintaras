@@ -68,7 +68,7 @@ public class MainActivity extends AppCompatActivity {
         // Bind to THIS engine explicitly so the in-app preview uses our voice.
         status.setText(R.string.tts_loading);
         logLine("Loading engine: " + getPackageName());
-        logLine("== BUILD: JIT-ON diagnostic (test if JIT works on device) ==");
+        logLine("== BUILD: logcat-capture diagnostic ==");
         tts = new TextToSpeech(this, this::onTtsInit, getPackageName());
     }
 
@@ -95,6 +95,7 @@ public class MainActivity extends AppCompatActivity {
                     logLine("onDone(" + id + ") chunks=" + audioChunks + " bytes=" + audioBytes
                             + " peak=" + audioPeak + " nonzero=" + audioNonZero
                             + (audioPeak == 0 ? " <- ALL SILENCE" : ""));
+                    dumpEngineLog();
                 }
                 @Override public void onError(String id) {
                     logLine("onError(" + id + ")");
@@ -141,6 +142,41 @@ public class MainActivity extends AppCompatActivity {
         int r = tts.speak(text.toString(), TextToSpeech.QUEUE_FLUSH, null, "preview");
         logLine("speak(\"" + text + "\") returned " + r
                 + (r == TextToSpeech.SUCCESS ? " (queued)" : " (FAILED)"));
+    }
+
+    /**
+     * Dumps this app's own recent logcat and surfaces engine lines. The native
+     * librosasofttts logs "Error00/01/02/03 %s" with the Lua error text whenever
+     * a lua_pcall fails — that message tells us exactly why synthesis yields
+     * silent PCM. Apps can read their own (same-UID) log entries without any
+     * special permission.
+     */
+    private void dumpEngineLog() {
+        new Thread(() -> {
+            StringBuilder sb = new StringBuilder();
+            try {
+                Process p = Runtime.getRuntime().exec(
+                        new String[]{"logcat", "-d", "-v", "brief", "-t", "400"});
+                java.io.BufferedReader r = new java.io.BufferedReader(
+                        new java.io.InputStreamReader(p.getInputStream()));
+                String line;
+                while ((line = r.readLine()) != null) {
+                    String l = line.toLowerCase();
+                    if (l.contains("error0") || l.contains("rosasoft") || l.contains("ttsservice")
+                            || l.contains("luajit") || l.contains("lua") || l.contains("jni")
+                            || l.contains("transcr") || l.contains("restrict")
+                            || l.contains("execmem") || l.contains("avc:")) {
+                        sb.append(line).append('\n');
+                        if (sb.length() > 2500) break;
+                    }
+                }
+                r.close();
+            } catch (Exception e) {
+                sb.append("logcat read failed: ").append(e);
+            }
+            String out = sb.length() > 0 ? sb.toString() : "(no engine log lines)";
+            logLine("--- ENGINE LOGCAT ---\n" + out);
+        }).start();
     }
 
     private void logLine(String line) {
