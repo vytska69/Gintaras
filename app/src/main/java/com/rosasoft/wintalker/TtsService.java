@@ -275,6 +275,17 @@ public class TtsService extends TextToSpeechService {
                 .replaceAll("\\p{M}+", "");
         this.textbuffer = normalized.getBytes(java.nio.charset.StandardCharsets.UTF_16);
 
+        // Diagnostic: surface exactly what Android hands the engine (rate/pitch
+        // semantics or text encoding may differ on newer Android). Goes to logcat,
+        // captured on-screen by MainActivity.
+        StringBuilder hex = new StringBuilder();
+        for (int i = 0; i < this.textbuffer.length && i < 32; i++)
+            hex.append(String.format("%02x", this.textbuffer[i]));
+        android.util.Log.i("GINTDBG", "synth text='" + text + "' rate=" + this.rate
+                + " pitch=" + this.pitch + " punc=" + this.punc
+                + " dict=" + this.use_dictionary + " voice=" + this.voice
+                + " textbufLen=" + this.textbuffer.length + " hex=" + hex);
+
         callback.start(SAMPLING_RATE_HZ, 2, 1);
         int maxBufferSize = callback.getMaxBufferSize();
         this.buffersize = 0;
