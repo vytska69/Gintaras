@@ -69,14 +69,13 @@ do
     ffi.string = function(...)
       local a = {...}
       local r = o(...)
-      n = n + 1
-      if n <= 6 then
+      -- Only log "long" strings (>20 bytes): these are the synthesis text, not the
+      -- tiny voice-name/database strings extracted during loadvoice.
+      if type(r)=="string" and #r > 20 and n < 8 then
+        n = n + 1
         local h = ""
-        if type(r)=="string" then
-          for i=1,math.min(#r,16) do h = h..string.format("%02x", r:byte(i)) end
-        end
-        L("ffi.string#"..n.." nargs="..#a.." arg2="..tostring(a[2])
-          .." -> len="..(type(r)=="string" and #r or -1).." hex="..h)
+        for i=1,math.min(#r,40) do h = h..string.format("%02x", r:byte(i)) end
+        L("ffi.string(TEXT)#"..n.." len="..#r.." hex="..h)
       end
       return r
     end
@@ -120,10 +119,17 @@ do
     local o = tl.translate
     tl.translate = function(...)
       local a={...}
-      local argdesc = "nargs="..#a
-      for i=1,math.min(#a,3) do argdesc = argdesc.." a"..i.."="..brief(a[i]) end
       local r = o(...)
-      L("translate.translate "..argdesc.." -> "..brief(r))
+      -- Dump the input text byte-for-byte (hex) so we can see exactly what the
+      -- transcription receives - empty? truncated? wrong encoding?
+      local inp = a[1]
+      local h = ""
+      if type(inp)=="string" then
+        for i=1,math.min(#inp,48) do h = h..string.format("%02x", inp:byte(i)) end
+      end
+      local rn = 0; if type(r)=="table" then for _ in pairs(r) do rn=rn+1 end end
+      L("translate.translate inlen="..(type(inp)=="string" and #inp or -1)
+        .." inhex="..h.." -> phonemes="..rn)
       return r
     end
   end
