@@ -103,7 +103,15 @@ def main():
         m = m.replace(LIC_FIND, LIC_REPLACE)
     mods["main"] = bytes(m)
 
-    boot = ["local pl = package.preload"]
+    # Disable the LuaJIT compiler. On Android API 29+ (and strict SELinux W^X /
+    # execmem policies, e.g. Android 12..16) the runtime forbids allocating
+    # executable memory at run time, so LuaJIT's JIT fails with "runtime code
+    # generation failed, restricted kernel?". librosasofttts catches that in
+    # lua_pcall, returns no audio -> silence (engine still reports "ready").
+    # Running interpreter-only needs no executable memory and works everywhere;
+    # for a TTS front-end the speed cost is irrelevant.
+    boot = ["local pl = package.preload",
+            "if jit and jit.off then jit.off() end"]
     for nm in MODULES:
         boot.append(f'pl["{nm}"] = assert(loadstring({lua_escape(mods[nm])}, "{nm}"))')
     boot.append('LANG = "LT"')
