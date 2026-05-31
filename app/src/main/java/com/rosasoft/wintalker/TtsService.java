@@ -242,7 +242,24 @@ public class TtsService extends TextToSpeechService {
         this.imei = "";
         this.number = "";
 
-        this.textbuffer = text.toLowerCase().getBytes(java.nio.charset.StandardCharsets.UTF_16);
+        // Normalize text before handing it to the native engine.
+        //
+        // The engine receives UTF-16 and maps each code point to the Baltic
+        // cp1257 code page; any code point it does not know is dropped down to a
+        // raw byte (e.g. 'į' U+012F -> 0x2F = '/'), which corrupts/aborts
+        // synthesis. Two newer-Android behaviours trigger this:
+        //   1. Locale-sensitive lowercasing: in a Lithuanian locale Java/ICU
+        //      applies the Unicode "dotted i" SpecialCasing rule and inserts a
+        //      COMBINING DOT ABOVE (U+0307). Older Android did not. Using
+        //      Locale.ROOT avoids that special casing entirely.
+        //   2. Decomposed (NFD) input: combining marks the cp1257 map lacks.
+        // So: lowercase locale-independently, recompose to NFC, then strip any
+        // leftover combining diacritical marks. All Lithuanian letters exist as
+        // precomposed code points in cp1257, so this is lossless for them.
+        String normalized = java.text.Normalizer.normalize(
+                text.toLowerCase(java.util.Locale.ROOT), java.text.Normalizer.Form.NFC)
+                .replaceAll("\\p{M}+", "");
+        this.textbuffer = normalized.getBytes(java.nio.charset.StandardCharsets.UTF_16);
 
         callback.start(SAMPLING_RATE_HZ, 2, 1);
         int maxBufferSize = callback.getMaxBufferSize();
