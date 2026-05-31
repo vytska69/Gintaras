@@ -55,6 +55,36 @@ io.write(#order)
 '''
 
 
+_INSTRUMENT_LUA = r'''
+do
+  local function L(s) if print then print("GINTDBG "..s) end end
+  local ok, db = pcall(require, "database")
+  if ok and type(db)=="table" and type(db.loaddatabase)=="function" then
+    local o = db.loaddatabase
+    db.loaddatabase = function(...)
+      local a={...}; local s="loaddatabase nargs="..#a
+      for i=1,#a do local v=a[i]; s=s.." a"..i.."="..type(v)..(type(v)=="string" and ("("..#v..")") or "") end
+      L(s)
+      local r = o(...)
+      if type(db.VOICES)=="table" then local n=0 for _ in pairs(db.VOICES) do n=n+1 end L("VOICES voices="..n) end
+      return r
+    end
+  end
+  local ok2, tl = pcall(require, "translate")
+  if ok2 and type(tl)=="table" and type(tl.translate)=="function" then
+    local o = tl.translate
+    tl.translate = function(...)
+      local a={...}
+      local r = o(...)
+      local rs = type(r)=="string" and r or tostring(r)
+      L("translate in="..tostring(a[1]).." outtype="..type(r).." outlen="..(type(r)=="string" and #r or -1).." out="..rs:sub(1,100))
+      return r
+    end
+  end
+end
+'''
+
+
 def _env(luajit):
     """Make jit/*.lua (needed by `luajit -b`) resolvable from the source tree."""
     env = dict(os.environ)
@@ -119,6 +149,11 @@ def main():
     for nm in MODULES:
         boot.append(f'pl["{nm}"] = assert(loadstring({lua_escape(mods[nm])}, "{nm}"))')
     boot.append('LANG = "LT"')
+    # INSTRUMENT=1 wraps a few engine entry points with logging (via the engine's
+    # print, which routes to Android logcat) to bisect on-device where synthesis
+    # turns silent: is the voice DB loaded fully? does transcription emit phonemes?
+    if os.environ.get("INSTRUMENT", "0") == "1":
+        boot.append(_INSTRUMENT_LUA)
     boot.append('return require("main").start(...)')
     bootp = os.path.join(work, "bootstrap.lua")
     open(bootp, "w").write("\n".join(boot))

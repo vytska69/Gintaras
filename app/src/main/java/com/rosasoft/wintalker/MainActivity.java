@@ -71,7 +71,7 @@ public class MainActivity extends AppCompatActivity {
         // Bind to THIS engine explicitly so the in-app preview uses our voice.
         status.setText(R.string.tts_loading);
         logLine("Loading engine: " + getPackageName());
-        logLine("== BUILD: logcat-capture diagnostic ==");
+        logLine("== BUILD: engine-instrumented (GINTDBG) diagnostic ==");
         tts = new TextToSpeech(this, this::onTtsInit, getPackageName());
     }
 
@@ -165,7 +165,7 @@ public class MainActivity extends AppCompatActivity {
                 String line;
                 while ((line = r.readLine()) != null) {
                     String l = line.toLowerCase();
-                    if (l.contains("error0") || l.contains("rosasoft") || l.contains("ttsservice")
+                    if (l.contains("gintdbg") || l.contains("error0") || l.contains("rosasoft") || l.contains("ttsservice")
                             || l.contains("luajit") || l.contains("lua") || l.contains("jni")
                             || l.contains("transcr") || l.contains("restrict")
                             || l.contains("execmem") || l.contains("avc:")) {
