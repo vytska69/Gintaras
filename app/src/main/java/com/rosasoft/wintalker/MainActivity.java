@@ -65,6 +65,9 @@ public class MainActivity extends AppCompatActivity {
         settings.setOnClickListener(v ->
                 startActivity(new Intent(this, SettingsActivity.class)));
 
+        MaterialButton exportLog = findViewById(R.id.exportLogButton);
+        exportLog.setOnClickListener(v -> exportLog());
+
         // Bind to THIS engine explicitly so the in-app preview uses our voice.
         status.setText(R.string.tts_loading);
         logLine("Loading engine: " + getPackageName());
@@ -177,6 +180,75 @@ public class MainActivity extends AppCompatActivity {
             String out = sb.length() > 0 ? sb.toString() : "(no engine log lines)";
             logLine("--- ENGINE LOGCAT ---\n" + out);
         }).start();
+    }
+
+    /**
+     * Writes the on-screen diagnostics plus a full logcat dump to the public
+     * Downloads folder as a timestamped .txt. Uses MediaStore on Android 10+
+     * (no permission needed) and a direct file on older versions.
+     */
+    private void exportLog() {
+        new Thread(() -> {
+            String name = "gintaras-log-"
+                    + new java.text.SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US)
+                            .format(new java.util.Date()) + ".txt";
+            String content = buildExportContent();
+            String result;
+            try {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                    android.content.ContentValues cv = new android.content.ContentValues();
+                    cv.put(android.provider.MediaStore.Downloads.DISPLAY_NAME, name);
+                    cv.put(android.provider.MediaStore.Downloads.MIME_TYPE, "text/plain");
+                    cv.put(android.provider.MediaStore.Downloads.RELATIVE_PATH,
+                            android.os.Environment.DIRECTORY_DOWNLOADS);
+                    android.net.Uri uri = getContentResolver().insert(
+                            android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, cv);
+                    try (java.io.OutputStream os = getContentResolver().openOutputStream(uri)) {
+                        os.write(content.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                    }
+                    result = "Įrašyta: Download/" + name;
+                } else {
+                    java.io.File dir = android.os.Environment.getExternalStoragePublicDirectory(
+                            android.os.Environment.DIRECTORY_DOWNLOADS);
+                    dir.mkdirs();
+                    java.io.File f = new java.io.File(dir, name);
+                    try (java.io.FileOutputStream os = new java.io.FileOutputStream(f)) {
+                        os.write(content.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                    }
+                    result = "Įrašyta: " + f.getAbsolutePath();
+                }
+            } catch (Exception e) {
+                result = "Eksportas nepavyko: " + e;
+            }
+            logLine(result);
+        }).start();
+    }
+
+    /** Full diagnostics: on-screen log (newest-first reversed to chronological)
+     *  followed by a complete logcat dump for this app. */
+    private String buildExportContent() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("=== Gintaras TTS diagnostic log ===\n");
+        sb.append("time: ").append(new java.util.Date()).append('\n');
+        sb.append("device: ").append(android.os.Build.MANUFACTURER).append(' ')
+                .append(android.os.Build.MODEL).append(" / Android ")
+                .append(android.os.Build.VERSION.RELEASE).append(" (API ")
+                .append(android.os.Build.VERSION.SDK_INT).append(")\n\n");
+        sb.append("=== ON-SCREEN LOG (chronological) ===\n");
+        String[] lines = log.toString().split("\n");
+        for (int i = lines.length - 1; i >= 0; i--) sb.append(lines[i]).append('\n');
+        sb.append("\n=== FULL LOGCAT (this app) ===\n");
+        try {
+            Process p = Runtime.getRuntime().exec(new String[]{"logcat", "-d", "-v", "time"});
+            java.io.BufferedReader r = new java.io.BufferedReader(
+                    new java.io.InputStreamReader(p.getInputStream()));
+            String line;
+            while ((line = r.readLine()) != null) sb.append(line).append('\n');
+            r.close();
+        } catch (Exception e) {
+            sb.append("logcat read failed: ").append(e).append('\n');
+        }
+        return sb.toString();
     }
 
     private void logLine(String line) {

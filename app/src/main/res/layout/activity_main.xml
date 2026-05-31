@@ -105,6 +105,14 @@
                 android:layout_marginTop="8dp"
                 android:text="@string/open_settings" />
 
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/exportLogButton"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/export_log" />
+
             <TextView
                 android:id="@+id/diagText"
                 android:layout_width="match_parent"
