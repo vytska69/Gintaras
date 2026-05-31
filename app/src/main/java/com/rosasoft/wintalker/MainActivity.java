@@ -71,7 +71,7 @@ public class MainActivity extends AppCompatActivity {
         // Bind to THIS engine explicitly so the in-app preview uses our voice.
         status.setText(R.string.tts_loading);
         logLine("Loading engine: " + getPackageName());
-        logLine("== BUILD: MODERN libluajit + instrumented (GINTDBG) ==");
+        logLine("== BUILD: 2015 libluajit (reverted) + instrumented (GINTDBG) ==");
         tts = new TextToSpeech(this, this::onTtsInit, getPackageName());
     }
 
