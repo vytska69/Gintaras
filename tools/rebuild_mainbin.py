@@ -90,31 +90,64 @@ do
     end
   end
   local ok2, tl = pcall(require, "translate")
-  if ok2 and type(tl)=="table" and type(tl.translate)=="function" then
-    local o = tl.translate
-    tl.translate = function(...)
-      local a={...}
-      local argdesc = "nargs="..#a
-      for i=1,#a do argdesc = argdesc.." a"..i.."="..brief(a[i]) end
-      local r = o(...)
-      L("translate "..argdesc.." -> "..brief(r))
-      return r
-    end
-  end
-  -- voicesynth: wrap every function it exports so we can see input phonemes and
-  -- whatever PCM/sample structure it returns.
-  local ok3, vs = pcall(require, "voicesynth")
-  if ok3 and type(vs)=="table" then
-    for name, fn in pairs(vs) do
-      if type(fn)=="function" then
-        vs[name] = function(...)
+  if ok2 and type(tl)=="table" then
+    for _, name in ipairs({"text2phon","getphonemes","synthesize","prosody"}) do
+      local o = tl[name]
+      if type(o)=="function" then
+        tl[name] = function(...)
           local a={...}
-          local argdesc = ""
+          local argdesc = "nargs="..#a
           for i=1,math.min(#a,3) do argdesc = argdesc.." a"..i.."="..brief(a[i]) end
-          local r = fn(...)
-          L("voicesynth."..name.." nargs="..#a..argdesc.." -> "..brief(r))
+          local r = o(...)
+          L("translate."..name.." "..argdesc.." -> "..brief(r))
           return r
         end
+      end
+    end
+  end
+  -- transcription layer (text -> phonemes via libtranscr + LPeg rules)
+  local ok4, tr = pcall(require, "trans")
+  if ok4 and type(tr)=="table" then
+    for _, name in ipairs({"transcribe"}) do
+      local o = tr[name]
+      if type(o)=="function" then
+        tr[name] = function(...)
+          local a={...}
+          local argdesc = "nargs="..#a
+          for i=1,math.min(#a,3) do argdesc = argdesc.." a"..i.."="..brief(a[i]) end
+          local r = o(...)
+          L("trans."..name.." "..argdesc.." -> "..brief(r))
+          return r
+        end
+      end
+    end
+  end
+  -- voicesynth: count how many voiced vs silence frames are emitted (cheap
+  -- counters, NOT per-call logging - wrapping the hot path breaks synthesis).
+  local ok3, vs = pcall(require, "voicesynth")
+  if ok3 and type(vs)=="table" then
+    _G.GINTCNT = {voiced=0, silence=0, sample=0}
+    for _, name in ipairs({"fillvoiced","fillvoicedframe","silence","addsample"}) do
+      local o = vs[name]
+      if type(o)=="function" then
+        local key = (name=="addsample") and "sample"
+                 or (name=="silence") and "silence" or "voiced"
+        vs[name] = function(...)
+          _G.GINTCNT[key] = _G.GINTCNT[key] + 1
+          return o(...)
+        end
+      end
+    end
+    if type(vs.synth)=="function" then
+      local o = vs.synth
+      vs.synth = function(...)
+        local a={...}
+        local argdesc = "nargs="..#a
+        for i=1,math.min(#a,2) do argdesc = argdesc.." a"..i.."="..brief(a[i]) end
+        local r = o(...)
+        L("voicesynth.synth "..argdesc.." voiced="..GINTCNT.voiced
+          .." silence="..GINTCNT.silence.." sample="..GINTCNT.sample.." -> "..brief(r))
+        return r
       end
     end
   end
