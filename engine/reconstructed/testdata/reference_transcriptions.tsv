@@ -1,0 +1,72 @@
+# word	normalized	norm_cp1257_hex	phonemes(space-separated)	return
+labas	LABAS 	4c4142415320	_ l aA b aA s _	15
+lietuva	LIETUVA 	4c49455455564120	_ l' i eA t u v aA _	20
+ačiū	AČIŪ 	41c849db20	_ aA tS' uU _	13
+šuo	ŠUO 	d0554f20	_ S u oO _	10
+žąsis	ŽĄSIS 	dec053495320	_ Z aA s' i s _	15
+penki	PENKI 	50454e4b4920	_ p' eA N' k' i _	17
+ąžuolas	ĄŽUOLAS 	c0de554f4c415320	_ aA Z u oO l aA s _	20
+motina	MOTINA 	4d4f54494e4120	_ m oO t' i n aA _	18
+sudie	SUDIE 	535544494520	_ s u d' i eA _	15
+gintaras	GINTARAS 	47494e544152415320	_ g' i N t aA r aA s _	22
+kompiuteris	KOMPIUTERIS 	4b4f4d504955544552495320	_ k oO M' p' u t' eA r' i s _	29
+namas	NAMAS 	4e414d415320	_ n aA m aA s _	15
+vanduo	VANDUO 	56414e44554f20	_ v aA N d u oO _	17
+saulė	SAULĖ 	5341554ccb20	_ s aA W l' eE _	16
+mėnulis	MĖNULIS 	4dcb4e554c495320	_ m' eE n u l' i s _	20
+žmogus	ŽMOGUS 	de4d4f47555320	_ Z M oO g u s _	16
+vaikas	VAIKAS 	5641494b415320	_ v aA J k aA s _	17
+mokykla	MOKYKLA 	4d4f4b594b4c4120	_ m oO k' iI k L aA _	21
+knyga	KNYGA 	4b4e59474120	_ k' N' iI g aA _	17
+draugas	DRAUGAS 	4452415547415320	_ d R aA W g aA s _	19
+meilė	MEILĖ 	4d45494ccb20	_ m' eA J l' eE _	17
+laisvė	LAISVĖ 	4c41495356cb20	_ l aA J s' v' eE _	19
+tėvynė	TĖVYNĖ 	54cb56594ecb20	_ t' eE v' iI n' eE _	21
+kalba	KALBA 	4b414c424120	_ k aA L b aA _	15
+sintezė	SINTEZĖ 	53494e54455acb20	_ s' i N' t' eA z' eE _	23
+balsas	BALSAS 	42414c53415320	_ b aA L s aA s _	17
+garsas	GARSAS 	47415253415320	_ g aA R s aA s _	17
+tekstas	TEKSTAS 	54454b5354415320	_ t' eA k s t aA s _	20
+skaičius	SKAIČIUS 	534b4149c849555320	_ s k aA J tS' u s _	20
+vienas	VIENAS 	5649454e415320	_ v' i eA n aA s _	18
+du	DU 	445520	_ d u _	7
+trys	TRYS 	5452595320	_ t' R' iI s _	14
+keturi	KETURI 	4b455455524920	_ k' eA t u r' i _	18
+šeši	ŠEŠI 	d045d04920	_ S' eA S' i _	14
+septyni	SEPTYNI 	53455054594e4920	_ s' eA p' t' iI n' i _	23
+aštuoni	AŠTUONI 	41d054554f4e4920	_ aA S t u oO n' i _	20
+devyni	DEVYNI 	444556594e4920	_ d' eA v' iI n' i _	20
+dešimt	DEŠIMT 	4445d0494d5420	_ d' eA S' i M t _	18
+šimtas	ŠIMTAS 	d0494d54415320	_ S' i M t aA s _	17
+tūkstantis	TŪKSTANTIS 	54db4b5354414e54495320	_ t uU k s t aA N' t' i s _	27
+pirmas	PIRMAS 	5049524d415320	_ p' i R m aA s _	17
+antras	ANTRAS 	414e5452415320	_ aA N t R aA s _	17
+darbas	DARBAS 	44415242415320	_ d aA R b aA s _	17
+miestas	MIESTAS 	4d49455354415320	_ m' i eA s t aA s _	20
+kaimas	KAIMAS 	4b41494d415320	_ k aA J m aA s _	17
+kelias	KELIAS 	4b454c49415320	_ k' eA l' eA s _	17
+upė	UPĖ 	5550cb20	_ u p' eE _	11
+jūra	JŪRA 	4adb524120	_ j' uU r aA _	14
+dangus	DANGUS 	44414e47555320	_ d aA N g u s _	16
+debesis	DEBESIS 	4445424553495320	_ d' eA b' eA s' i s _	22
+lietus	LIETUS 	4c494554555320	_ l' i eA t u s _	17
+sniegas	SNIEGAS 	534e494547415320	_ s' N' i eA g aA s _	21
+ryškus	RYŠKUS 	5259d04b555320	_ r' iI S k u s _	17
+tamsus	TAMSUS 	54414d53555320	_ t aA M s u s _	16
+didelis	DIDELIS 	444944454c495320	_ d' i d' eA l' i s _	21
+mažas	MAŽAS 	4d41de415320	_ m aA Z aA s _	15
+geras	GERAS 	474552415320	_ g' eA r aA s _	16
+blogas	BLOGAS 	424c4f47415320	_ b L oO g aA s _	17
+naujas	NAUJAS 	4e41554a415320	_ n aA W j' eA s _	18
+senas	SENAS 	53454e415320	_ s' eA n aA s _	16
+greitas	GREITAS 	4752454954415320	_ g' R' eA J t aA s _	21
+lėtas	LĖTAS 	4ccb54415320	_ l' eE t aA s _	16
+ąsotis	ĄSOTIS 	c0534f54495320	_ aA s oO t' i s _	18
+ęglė	ĘGLĖ 	c6474ccb20	_ eA g' L' eE _	15
+įsakymas	ĮSAKYMAS 	c153414b594d415320	_ iI s aA k' iI m aA s _	24
+ųdra	ŲDRA 	d844524120	_ uU d R aA _	13
+ūkas	ŪKAS 	db4b415320	_ uU k aA s _	13
+česnakas	ČESNAKAS 	c845534e414b415320	_ tS' eA s N aA k aA s _	24
+šaukštas	ŠAUKŠTAS 	d041554bd054415320	_ S aA W k S t aA s _	21
+žvaigždė	ŽVAIGŽDĖ 	de56414947de44cb20	_ Z v aA J g' Z' d' eE _	24
+chemija	CHEMIJA 	4348454d494a4120	_ x' eA m' i j' eA _	20

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Gintaras" parent="Theme.Material3.DayNight">
+        <item name="colorPrimary">@color/amber_700</item>
+        <item name="colorPrimaryContainer">@color/amber_100</item>
+        <item name="colorOnPrimaryContainer">@color/amber_900</item>
+        <item name="colorSecondary">@color/amber_700</item>
+    </style>
+
+    <style name="Theme.Gintaras.Settings" parent="Theme.Gintaras" />
+</resources>
