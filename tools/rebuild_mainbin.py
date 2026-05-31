@@ -58,6 +58,29 @@ io.write(#order)
 _INSTRUMENT_LUA = r'''
 do
   local function L(s) if print then print("GINTDBG "..s) end end
+  -- The text reaches translate as an EMPTY string on modern Android even though
+  -- Java's textbuffer is correct (76 UTF-16 bytes). The engine extracts it via
+  -- ffi.string after ffi.copy/ffi.cast of an int16_t[] - wrap ffi.string to see
+  -- exactly what it returns (and its length) at the point of extraction.
+  local okffi, ffi = pcall(require, "ffi")
+  if okffi and type(ffi)=="table" and type(ffi.string)=="function" then
+    local o = ffi.string
+    local n = 0
+    ffi.string = function(...)
+      local a = {...}
+      local r = o(...)
+      n = n + 1
+      if n <= 6 then
+        local h = ""
+        if type(r)=="string" then
+          for i=1,math.min(#r,16) do h = h..string.format("%02x", r:byte(i)) end
+        end
+        L("ffi.string#"..n.." nargs="..#a.." arg2="..tostring(a[2])
+          .." -> len="..(type(r)=="string" and #r or -1).." hex="..h)
+      end
+      return r
+    end
+  end
   -- brief serialiser: shows table size + a few key=value pairs (one level deep)
   local function brief(v, depth)
     local t = type(v)
