@@ -1,0 +1,72 @@
+# word	normalized	phonemes(space-separated)	return
+labas	LABAS 	_ l aA b aA s _	15
+lietuva	LIETUVA 	_ l' i eA t u v aA _	20
+ačiū	AČIŪ 	_ aA tS' uU _	13
+šuo	ŠUO 	_ S u oO _	10
+žąsis	ŽĄSIS 	_ Z aA s' i s _	15
+penki	PENKI 	_ p' eA N' k' i _	17
+ąžuolas	ĄŽUOLAS 	_ aA Z u oO l aA s _	20
+motina	MOTINA 	_ m oO t' i n aA _	18
+sudie	SUDIE 	_ s u d' i eA _	15
+gintaras	GINTARAS 	_ g' i N t aA r aA s _	22
+kompiuteris	KOMPIUTERIS 	_ k oO M' p' u t' eA r' i s _	29
+namas	NAMAS 	_ n aA m aA s _	15
+vanduo	VANDUO 	_ v aA N d u oO _	17
+saulė	SAULĖ 	_ s aA W l' eE _	16
+mėnulis	MĖNULIS 	_ m' eE n u l' i s _	20
+žmogus	ŽMOGUS 	_ Z M oO g u s _	16
+vaikas	VAIKAS 	_ v aA J k aA s _	17
+mokykla	MOKYKLA 	_ m oO k' iI k L aA _	21
+knyga	KNYGA 	_ k' N' iI g aA _	17
+draugas	DRAUGAS 	_ d R aA W g aA s _	19
+meilė	MEILĖ 	_ m' eA J l' eE _	17
+laisvė	LAISVĖ 	_ l aA J s' v' eE _	19
+tėvynė	TĖVYNĖ 	_ t' eE v' iI n' eE _	21
+kalba	KALBA 	_ k aA L b aA _	15
+sintezė	SINTEZĖ 	_ s' i N' t' eA z' eE _	23
+balsas	BALSAS 	_ b aA L s aA s _	17
+garsas	GARSAS 	_ g aA R s aA s _	17
+tekstas	TEKSTAS 	_ t' eA k s t aA s _	20
+skaičius	SKAIČIUS 	_ s k aA J tS' u s _	20
+vienas	VIENAS 	_ v' i eA n aA s _	18
+du	DU 	_ d u _	7
+trys	TRYS 	_ t' R' iI s _	14
+keturi	KETURI 	_ k' eA t u r' i _	18
+šeši	ŠEŠI 	_ S' eA S' i _	14
+septyni	SEPTYNI 	_ s' eA p' t' iI n' i _	23
+aštuoni	AŠTUONI 	_ aA S t u oO n' i _	20
+devyni	DEVYNI 	_ d' eA v' iI n' i _	20
+dešimt	DEŠIMT 	_ d' eA S' i M t _	18
+šimtas	ŠIMTAS 	_ S' i M t aA s _	17
+tūkstantis	TŪKSTANTIS 	_ t uU k s t aA N' t' i s _	27
+pirmas	PIRMAS 	_ p' i R m aA s _	17
+antras	ANTRAS 	_ aA N t R aA s _	17
+darbas	DARBAS 	_ d aA R b aA s _	17
+miestas	MIESTAS 	_ m' i eA s t aA s _	20
+kaimas	KAIMAS 	_ k aA J m aA s _	17
+kelias	KELIAS 	_ k' eA l' eA s _	17
+upė	UPĖ 	_ u p' eE _	11
+jūra	JŪRA 	_ j' uU r aA _	14
+dangus	DANGUS 	_ d aA N g u s _	16
+debesis	DEBESIS 	_ d' eA b' eA s' i s _	22
+lietus	LIETUS 	_ l' i eA t u s _	17
+sniegas	SNIEGAS 	_ s' N' i eA g aA s _	21
+ryškus	RYŠKUS 	_ r' iI S k u s _	17
+tamsus	TAMSUS 	_ t aA M s u s _	16
+didelis	DIDELIS 	_ d' i d' eA l' i s _	21
+mažas	MAŽAS 	_ m aA Z aA s _	15
+geras	GERAS 	_ g' eA r aA s _	16
+blogas	BLOGAS 	_ b L oO g aA s _	17
+naujas	NAUJAS 	_ n aA W j' eA s _	18
+senas	SENAS 	_ s' eA n aA s _	16
+greitas	GREITAS 	_ g' R' eA J t aA s _	21
+lėtas	LĖTAS 	_ l' eE t aA s _	16
+ąsotis	ĄSOTIS 	_ aA s oO t' i s _	18
+ęglė	ĘGLĖ 	_ eA g' L' eE _	15
+įsakymas	ĮSAKYMAS 	_ iI s aA k' iI m aA s _	24
+ųdra	ŲDRA 	_ uU d R aA _	13
+ūkas	ŪKAS 	_ uU k aA s _	13
+česnakas	ČESNAKAS 	_ tS' eA s N aA k aA s _	24
+šaukštas	ŠAUKŠTAS 	_ S aA W k S t aA s _	21
+žvaigždė	ŽVAIGŽDĖ 	_ Z v aA J g' Z' d' eE _	24
+chemija	CHEMIJA 	_ x' eA m' i j' eA _	20
