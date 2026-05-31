@@ -110,8 +110,12 @@ def main():
     # lua_pcall, returns no audio -> silence (engine still reports "ready").
     # Running interpreter-only needs no executable memory and works everywhere;
     # for a TTS front-end the speed cost is irrelevant.
-    boot = ["local pl = package.preload",
-            "if jit and jit.off then jit.off() end"]
+    # JITOFF=0 in the environment builds a JIT-enabled variant (diagnostic: lets
+    # us confirm on-device whether the JIT actually fails under W^X or works).
+    jitoff = os.environ.get("JITOFF", "1") != "0"
+    boot = ["local pl = package.preload"]
+    if jitoff:
+        boot.append("if jit and jit.off then jit.off() end")
     for nm in MODULES:
         boot.append(f'pl["{nm}"] = assert(loadstring({lua_escape(mods[nm])}, "{nm}"))')
     boot.append('LANG = "LT"')

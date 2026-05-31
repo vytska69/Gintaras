@@ -68,6 +68,7 @@ public class MainActivity extends AppCompatActivity {
         // Bind to THIS engine explicitly so the in-app preview uses our voice.
         status.setText(R.string.tts_loading);
         logLine("Loading engine: " + getPackageName());
+        logLine("== BUILD: JIT-ON diagnostic (test if JIT works on device) ==");
         tts = new TextToSpeech(this, this::onTtsInit, getPackageName());
     }
 
