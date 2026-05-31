@@ -58,6 +58,25 @@ io.write(#order)
 _INSTRUMENT_LUA = r'''
 do
   local function L(s) if print then print("GINTDBG "..s) end end
+  -- brief serialiser: shows table size + a few key=value pairs (one level deep)
+  local function brief(v, depth)
+    local t = type(v)
+    if t == "string" then return "str("..#v..")<"..v:sub(1,40)..">" end
+    if t ~= "table" then return t.."("..tostring(v)..")" end
+    local n = 0; for _ in pairs(v) do n = n + 1 end
+    local parts = {}
+    local shown = 0
+    for k, val in pairs(v) do
+      if shown >= 6 then break end
+      local vs
+      if type(val) == "table" and (depth or 0) < 1 then vs = brief(val, 1)
+      elseif type(val) == "string" then vs = '"'..val:sub(1,16)..'"'
+      else vs = tostring(val) end
+      parts[#parts+1] = tostring(k).."="..vs
+      shown = shown + 1
+    end
+    return "table#"..n.."{"..table.concat(parts, ",").."}"
+  end
   local ok, db = pcall(require, "database")
   if ok and type(db)=="table" and type(db.loaddatabase)=="function" then
     local o = db.loaddatabase
@@ -75,10 +94,28 @@ do
     local o = tl.translate
     tl.translate = function(...)
       local a={...}
+      local argdesc = "nargs="..#a
+      for i=1,#a do argdesc = argdesc.." a"..i.."="..brief(a[i]) end
       local r = o(...)
-      local rs = type(r)=="string" and r or tostring(r)
-      L("translate in="..tostring(a[1]).." outtype="..type(r).." outlen="..(type(r)=="string" and #r or -1).." out="..rs:sub(1,100))
+      L("translate "..argdesc.." -> "..brief(r))
       return r
+    end
+  end
+  -- voicesynth: wrap every function it exports so we can see input phonemes and
+  -- whatever PCM/sample structure it returns.
+  local ok3, vs = pcall(require, "voicesynth")
+  if ok3 and type(vs)=="table" then
+    for name, fn in pairs(vs) do
+      if type(fn)=="function" then
+        vs[name] = function(...)
+          local a={...}
+          local argdesc = ""
+          for i=1,math.min(#a,3) do argdesc = argdesc.." a"..i.."="..brief(a[i]) end
+          local r = fn(...)
+          L("voicesynth."..name.." nargs="..#a..argdesc.." -> "..brief(r))
+          return r
+        end
+      end
     end
   end
 end
