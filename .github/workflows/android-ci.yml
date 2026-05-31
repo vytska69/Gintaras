@@ -8,11 +8,11 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
-    name: Build debug APK (armeabi-v7a)
+    name: Build & release debug APK (armeabi-v7a)
     runs-on: ubuntu-latest
 
     steps:
@@ -40,9 +40,26 @@ jobs:
       - name: Build debug APK
         run: ./gradlew assembleDebug --stacktrace
 
-      - name: Upload APK
+      - name: Stage APK
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/app-debug.apk dist/gintaras-tts-debug.apk
+
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: gintaras-tts-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          path: dist/gintaras-tts-debug.apk
           if-no-files-found: error
+
+      - name: Publish APK to Releases
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Rolling "latest" release that always carries the newest APK.
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest dist/gintaras-tts-debug.apk \
+            --title "Latest build (debug)" \
+            --notes "Automated build from ${GITHUB_SHA::7}. Install on Android, then pick \"WinTalker Voice\" under Settings → Text-to-speech." \
+            --latest
