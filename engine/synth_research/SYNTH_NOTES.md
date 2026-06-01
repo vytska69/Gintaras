@@ -104,3 +104,28 @@ Build the diphone index in Java (reuse VoiceDatabase): map unit-name → records
 sample blocks. Then a first synthesiser concatenates the selected blocks for a
 phoneme sequence (no pitch shift) to produce audible PCM. PSOLA pitch/overlap
 (proto@-47,-48) is the quality layer added after.
+
+## Unit segmentation clarified (from feedback: "gyntyrys" — recognisable!)
+The synth DID produce recognisable Lithuanian (user heard ~"gintaras"), confirming
+the model. Vowel timbre was off because the unit segmentation/vowel-char mapping
+needs correction:
+
+- Units are DEMISYLLABLES with a mandatory boundary: '-CV' (onset+vowel, e.g.
+  '-la','-gi','-te','-to') and 'VC-' (vowel+coda, e.g. 'ta-','go-','gi-'). Plain
+  2-phoneme units WITHOUT a boundary mostly DON'T exist (no 'ab','ba','as','la').
+- So a word C1 V1 C2 V2 ... s is covered by overlapping demisyllables joined at
+  vowel midpoints: '-C1V1' + 'V1C2...' style, NOT by my current adjacent-pair
+  '-l','la','ab',... lookup (which only hit by luck).
+- Vowel chars: short a e i o u = 0x61 65 69 6f 75; the engine's long/stressed
+  vowels use internal codes á=0xe1, ė=0xeb, ó=0xf3, plus 0x07/0x0d/0x11; soft
+  variants U=0x55, Y=0x59. My mapping forced aA→á(0xe1) everywhere, over-using the
+  long form (hence the odd timbre). aA should usually map to short 'a' (0x61),
+  long only when truly stressed/long.
+
+## Correct synthesis approach (next)
+1. Segment phoneme stream into the engine's demisyllable units (-CV / VC-),
+   splitting at vowel centres so consecutive units overlap on the shared vowel.
+2. Map vowels to the SHORT cp1257 char by default; use long codes only for the
+   stressed/long phoneme variants the transcriber marks.
+3. Concatenate the matched unit waveforms (still no PSOLA yet) and re-listen.
+This should sharply improve vowel intelligibility.
