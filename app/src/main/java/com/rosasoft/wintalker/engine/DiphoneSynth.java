@@ -106,13 +106,23 @@ public final class DiphoneSynth {
         // continuous; overlapping them would shorten/distort and raise pitch).
         // Each unit "-X Y" shares phoneme Y with the next; drop each following
         // unit's first-half periods (the repeated shared phoneme).
+        // Each '-XY' unit spans X→Y. Adjacent units '-XY' and '-YZ' share phoneme
+        // Y: '-XY' ends in Y's onset, '-YZ' begins in Y's tail. To render Y once
+        // without truncating vowels, drop only a SMALL overlap (a couple of
+        // periods) from the front of each following unit, not its whole first
+        // half — that earlier halving made vowels too short.
         List<short[]> segs = new ArrayList<>();
         boolean first = true;
         for (List<short[]> u : units) {
             if (u == null || u.isEmpty()) continue;
             List<short[]> use;
-            if (first) { use = u; first = false; }
-            else       { use = u.subList(u.size() / 2, u.size()); }
+            if (first) {
+                use = u;
+                first = false;
+            } else {
+                int drop = Math.min(2, u.size() - 1); // trim the repeated onset only
+                use = u.subList(drop, u.size());
+            }
             int len = 0; for (short[] p : use) len += p.length;
             short[] seg = new short[len];
             int o = 0; for (short[] p : use) { System.arraycopy(p, 0, seg, o, p.length); o += p.length; }
