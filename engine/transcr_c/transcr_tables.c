@@ -9,3 +9,10 @@ const unsigned char TR_UNVOICED_CONS[] = { 0x42, 0x44, 0x47, 0x4b, 0x50, 0x54, 0
 /* TODO: phoneme-output string table (0xd2e3c..0xd2fa0) and the
    morphological ending tables (0xd3050+) as the algorithms that index
    them are reimplemented and validated against the oracle. */
+
+/* cp1257 Lithuanian case-fold pairs (upper <-> lower), from libtranscr .data.rel.ro
+ * @0x17196c. Used to normalise input before grapheme mapping. */
+const unsigned char TR_CASEFOLD[][2] = {
+    {0xc0,0xe0}, {0xc8,0xe8}, {0xc6,0xe6}, {0xcb,0xeb}, {0xc1,0xe1},
+    {0xd0,0xf0}, {0xd8,0xf8}, {0xdb,0xfb}, {0xde,0xfe}, {0,0}
+};
