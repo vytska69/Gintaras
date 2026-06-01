@@ -48,8 +48,11 @@ public final class DiphoneSynth {
             case "iI": case "ii": return 'i';
             case "uU": case "uu": return 'u';
             // glides and uppercase sonorant variants → their base letter
-            case "J": return 'j';
-            case "W": return 'v';
+            // glides: J is the i-glide (au→au, ai→ai), W is the u-glide. In the
+            // diphone alphabet they reuse the vowel chars i/u (saulė = -sa,-au,
+            // -ul,-le; vaikas = -va,-ai,-ik,-ka), NOT j/v.
+            case "J": return 'i';
+            case "W": return 'u';
             case "L": return 'l';
             case "M": return 'm';
             case "N": return 'n';
