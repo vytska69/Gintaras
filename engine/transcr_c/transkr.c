@@ -98,6 +98,25 @@ int tr_transkr(const unsigned char *w, int n, char *out)
     for (int i = 0; i < n; i++) {
         unsigned char c = w[i];
 
+        /* Digraph 'CH' → x (chaosas→x, choras→x). Palatalised before front
+         * vowels (chemikalas→x'). Consumes both letters. */
+        if (c == 'C' && i + 1 < n && w[i + 1] == 'H') {
+            int pal = is_palatalised(w, n, i + 1);
+            pos = emit(out, pos, pal ? "x'" : "x");
+            i++;
+            continue;
+        }
+        /* Digraph 'DŽ' → dZ, 'DZ' → dz (biudžetas→dZ'). Consumes both. */
+        if (c == 'D' && i + 1 < n && (w[i + 1] == 0xde || w[i + 1] == 'Z')) {
+            int dz_soft = (w[i + 1] == 0xde);
+            int pal = is_palatalised(w, n, i + 1);
+            const char *base = dz_soft ? "dZ" : "dz";
+            if (pal) { char b[6]; int m=(int)strlen(base); memcpy(b,base,m); b[m]='\''; b[m+1]=0; pos=emit(out,pos,b); }
+            else pos = emit(out, pos, base);
+            i++;
+            continue;
+        }
+
         /* 'i'/'j' before a back/low vowel (a o u ą ų ū) is a softness marker that
          * also fronts the vowel: ia→eA, io→oO, iu→u. The 'i' is absorbed; the
          * following 'a/ą' surfaces as eA (front). Before a front vowel 'i' stays
@@ -149,18 +168,24 @@ int tr_transkr(const unsigned char *w, int n, char *out)
             int prev_is_cons = (i > 0) && (vowel_phoneme(w[i - 1]) == 0);
             int after_vowel  = (i > 0) && vowel_phoneme(w[i - 1]);
             int coda = after_vowel && next_is_cons;
+            /* an obstruent is a consonant that is not a sonorant/glide */
+            int prev_obstruent = prev_is_cons &&
+                !(w[i-1]=='L'||w[i-1]=='M'||w[i-1]=='N'||w[i-1]=='R'||
+                  w[i-1]=='J'||w[i-1]=='V');
             /* palatalisation flag for the uppercase sonorant */
             int pal = is_palatalised(w, n, i);
-            /* Sonorants surface uppercase in a coda OR when adjacent to another
-             * consonant in a cluster (knyga kn→k' N', žmogus žm→Z M, mokykla
-             * kl→k L, brolis br→b R). */
-            int clustered = coda || prev_is_cons || (next_is_cons && i + 1 < n &&
-                                                      cons_voiced(w[i+1]));
+            /* L/M/N surface uppercase in a coda, or as an onset preceded by an
+             * OBSTRUENT (mokykla kl→L, knyga kn→N', žmogus žm→M) — but NOT after
+             * another sonorant (gimnazija mn→M n). 'r' uppercases in any cluster
+             * (brolis br→R, informatika ...R m). */
+            int son_up = coda || prev_obstruent;
+            int r_up   = coda || prev_is_cons || (next_is_cons && i + 1 < n &&
+                                                  cons_voiced(w[i+1]));
             const char *up = 0;
-            if (c == 'L' && clustered) up = "L";
-            else if (c == 'M' && clustered) up = "M";
-            else if (c == 'N' && clustered) up = "N";
-            else if (c == 'R' && clustered) up = "R";
+            if (c == 'L' && son_up) up = "L";
+            else if (c == 'M' && son_up) up = "M";
+            else if (c == 'N' && son_up) up = "N";
+            else if (c == 'R' && r_up) up = "R";
             if (up) {
                 if (pal) { char b[4]; b[0]=up[0]; b[1]='\''; b[2]=0; pos = emit(out, pos, b); }
                 else pos = emit(out, pos, up);
