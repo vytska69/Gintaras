@@ -337,3 +337,21 @@ pair. Need to determine the engine's actual unit-selection (phoneorder) rule:
 which unit covers which phoneme span. This is the real fix — current selection
 doubles/mismatches segments. Next: decode phoneorder's unit-picking from the
 phoneme stream rather than guessing pairs.
+
+## SOLVED: unit-selection rule (CV syllable units + coda units)
+Classified all units: '-CV' (consonant+vowel) are voiced multi-period (the syllable
+onset+nucleus); '-Vc' where c is an obstruent are C-only single blocks (the coda
+consonant after that vowel). The correct selection walks the phoneme string:
+  - at a consonant followed by a vowel → emit CV unit '-'+C+V (consumes both)
+  - at a coda consonant (after a vowel, not before one) → emit '-'+prevVowel+C
+    (the C-only coda unit), consumes the consonant only
+  - vowels are carried by their CV unit
+This covers each phoneme ONCE — no doubling:
+  labas    = -la + -ba + -as(coda)        → l a b a s ✓
+  gintaras = -gi + -in(coda) + -ta + -ra + -as(coda) → g i n t a r a s ✓
+  du       = -du ✓
+(remaining: diphthong glides like saule's u, and vowel-initial words — minor.)
+
+This is the real fix for the 'weird' speech: previous pairwise '-XY' selection
+doubled consonants/mismatched segments. Implement this CV+coda walker in
+DiphoneSynth, joining CV→coda and CV→CV at the shared vowel with a short crossfade.
