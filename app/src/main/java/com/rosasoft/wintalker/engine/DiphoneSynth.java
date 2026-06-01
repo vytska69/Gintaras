@@ -131,7 +131,24 @@ public final class DiphoneSynth {
 
         // Crossfade ONLY at unit joins (~5 ms) so the shared-phoneme handoff is
         // smooth, without touching the phase-continuous interior of each unit.
-        return overlapAdd(segs, 110);
+        short[] pcm = overlapAdd(segs, 110);
+
+        // Fade in/out the very start and end. The first sample block jumps from
+        // silence straight to full amplitude, which clicks — heard as a spurious
+        // plosive 'p' onset on every word (pietuva/pintaras/paue). A short ramp
+        // removes the click without audibly softening the real onset.
+        applyFades(pcm, 180);
+        return pcm;
+    }
+
+    /** Linear fade-in at the start and fade-out at the end (n samples each). */
+    private static void applyFades(short[] pcm, int n) {
+        int m = Math.min(n, pcm.length / 2);
+        for (int i = 0; i < m; i++) {
+            float t = (float) i / m;
+            pcm[i] = (short) (pcm[i] * t);
+            pcm[pcm.length - 1 - i] = (short) (pcm[pcm.length - 1 - i] * t);
+        }
     }
 
     /** Concatenate segments with a linear crossfade of `xf` samples at each join. */
