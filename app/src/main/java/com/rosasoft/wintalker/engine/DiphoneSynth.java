@@ -153,10 +153,12 @@ public final class DiphoneSynth {
                 int repeats = (ui + 1 == s.length() - 1) ? 3 : 2; // hold final vowel longer
                 for (int r = 0; r < repeats; r++) use.add(lastP);
             }
-            int len = 0; for (short[] p : use) len += p.length;
-            short[] seg = new short[len];
-            int o = 0; for (short[] p : use) { System.arraycopy(p, 0, seg, o, p.length); o += p.length; }
-            segs.add(seg);
+            // Concatenate the unit's periods with a short crossfade at EACH period
+            // boundary. Periods start near 0 and may end near 0 too, so a hard
+            // concat creates a step (0→several-thousand) every period — heard as a
+            // crackle, especially on repeated vowel periods. A ~12-sample blend at
+            // each boundary removes the step without shortening (we overlap, not cut).
+            segs.add(concatPeriodsSmooth(use, 12));
         }
 
         // Smooth amplitude across unit joins. Each diphone unit has its own
@@ -170,6 +172,33 @@ public final class DiphoneSynth {
 
         applyFades(pcm, 48);
         return pcm;
+    }
+
+    /** Concatenate pitch periods with a tiny crossfade at each period boundary to
+     *  suppress step discontinuities (crackle) while keeping full length. */
+    private static short[] concatPeriodsSmooth(List<short[]> periods, int xf) {
+        if (periods.isEmpty()) return new short[0];
+        int total = 0;
+        for (short[] p : periods) total += p.length;
+        total -= xf * Math.max(0, periods.size() - 1);
+        short[] out = new short[Math.max(total, 0)];
+        int pos = 0;
+        for (int k = 0; k < periods.size(); k++) {
+            short[] p = periods.get(k);
+            int start = 0;
+            if (k > 0) {
+                int n = Math.min(xf, Math.min(p.length, pos));
+                int base = pos - n;
+                for (int j = 0; j < n; j++) {
+                    float t = (float) j / n;
+                    int mixed = (int) (out[base + j] * (1 - t) + p[j] * t);
+                    out[base + j] = (short) Math.max(-32768, Math.min(32767, mixed));
+                }
+                start = n;
+            }
+            for (int j = start; j < p.length && pos < out.length; j++) out[pos++] = p[j];
+        }
+        return java.util.Arrays.copyOf(out, pos);
     }
 
     /** Peak amplitude of the first/last `n` samples of a segment. */
