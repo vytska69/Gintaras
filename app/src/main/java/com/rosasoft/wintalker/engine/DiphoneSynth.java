@@ -116,12 +116,11 @@ public final class DiphoneSynth {
         // without truncating vowels, drop only a SMALL overlap (a couple of
         // periods) from the front of each following unit, not its whole first
         // half — that earlier halving made vowels too short.
-        // PSOLA: resample every pitch period to a constant target period so the
-        // pitch is steady (the original engine does this — base pitch from the
-        // prosody table P0[5]=220 samples ≈ 100 Hz). Raw stored periods vary
-        // 190..230, which is what made our output rough. Concatenate the
-        // resampled periods of each unit, dropping each following unit's repeated
-        // onset (~2 periods) so the shared phoneme isn't doubled.
+        // Concatenate each unit's stored periods DIRECTLY (no resampling — the
+        // stored periods already carry the correct waveform incl. consonants,
+        // which are NOT pitch-periodic and must not be stretched). Drop each
+        // following unit's repeated onset (~2 periods) so the shared phoneme
+        // isn't doubled.
         List<short[]> segs = new ArrayList<>();
         boolean first = true;
         for (List<short[]> u : units) {
@@ -134,13 +133,9 @@ public final class DiphoneSynth {
                 int drop = Math.min(2, u.size() - 1);
                 use = u.subList(drop, u.size());
             }
-            // resample each period to TARGET_PERIOD and concatenate
-            short[] seg = new short[use.size() * TARGET_PERIOD];
-            int o = 0;
-            for (short[] p : use) {
-                resamplePeriod(p, seg, o, TARGET_PERIOD);
-                o += TARGET_PERIOD;
-            }
+            int len = 0; for (short[] p : use) len += p.length;
+            short[] seg = new short[len];
+            int o = 0; for (short[] p : use) { System.arraycopy(p, 0, seg, o, p.length); o += p.length; }
             segs.add(seg);
         }
 
