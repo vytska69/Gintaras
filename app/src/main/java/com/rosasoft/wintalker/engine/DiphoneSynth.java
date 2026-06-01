@@ -137,7 +137,7 @@ public final class DiphoneSynth {
         // silence straight to full amplitude, which clicks — heard as a spurious
         // plosive 'p' onset on every word (pietuva/pintaras/paue). A short ramp
         // removes the click without audibly softening the real onset.
-        applyFades(pcm, 180);
+        applyFades(pcm, 350);
         return pcm;
     }
 
