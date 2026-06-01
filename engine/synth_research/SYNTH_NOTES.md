@@ -246,3 +246,26 @@ The app already WORKS on-device (pure-Java v1, arm64). Capturing the original PC
 is a quality-reference effort that's proving multi-layered (loadvoice→
 loaddictionary→loadphrase→speak, each needing exact data shapes). The v1 synthesis
 is functional; the original-reference path continues as a parallel quality track.
+
+## DECODED the synthesis core (p11 + p8) — the algorithm we were missing
+p11 (the per-phrase synth loop):
+  total = Σ period.count           -- sum of all periods' count fields
+  ratio = (target / total) or 1    -- prosodic tempo/pitch scale
+  for each period: play(key, typ, count * ratio)
+
+p8 (play one period to a target length):
+  n = count (≥1); voiced = typ & 1
+  loop n times: emit data (first sample-block period) then data2 (subsequent),
+                i.e. REPEAT the period n times to reach the target length;
+  uses phonecount/phoneorder for ordering.
+
+KEY INSIGHT: each diphone record is ONE pitch period with a `count` (how many
+times to emit it) and `typ` (bit0 = voiced). The original reaches a target
+duration by REPEATING each period count*ratio times — a uniform pitch/tempo. Our
+Java synth instead concatenates raw periods once, so durations and pitch drift.
+
+In Gintaras.dta all records have count=1, typ∈{0,1}. So per period we emit it
+round(ratio) times, where ratio normalises total length to the prosody target
+(base period 220 from P0[5]). This is exactly the PSOLA period-repetition we
+should implement: pick target period = 220, emit each stored period (resampled to
+220) round(count*ratio) times. This is the principled fix derived from p8/p11.

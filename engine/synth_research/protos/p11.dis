@@ -1,0 +1,53 @@
+-- BYTECODE -- "voicesynth":0-0
+0001    UGET     3   0      ; 
+0002    TGETV    3   3   0
+0003    IST          3
+0004    JMP      4 => 0006
+0005    RET0     0   1
+0006 => UGET     4   1      ; 
+0007    TGETS    4   4   0  ; "istype"
+0008    UGET     5   2      ; 
+0009    MOV      6   3
+0010    CALL     4   2   3
+0011    ISF          4
+0012    JMP      5 => 0020
+0013    GGET     4   1      ; "coroutine"
+0014    TGETS    4   4   2  ; "yield"
+0015    MOV      5   3
+0016    MOV      6   2
+0017    MOV      7   1
+0018    CALL     4   1   4
+0019    JMP      4 => 0051
+0020 => KSHORT   4   0
+0021    KSHORT   5   1
+0022    LEN      6   3
+0023    KSHORT   7   1
+0024    FORI     5 => 0029
+0025 => TGETV    9   3   8
+0026    TGETS    9   9   3  ; "count"
+0027    ADDVV    4   4   9
+0028    FORL     5 => 0025
+0029 => ISF          2
+0030    JMP      5 => 0036
+0031    ISEQN    2   0      ; 1
+0032    JMP      5 => 0036
+0033    DIVVV    5   2   4
+0034    ISTC     2   5
+0035    JMP      6 => 0037
+0036 => KSHORT   2   1
+0037 => KSHORT   5   1
+0038    LEN      6   3
+0039    KSHORT   7   1
+0040    FORI     5 => 0051
+0041 => UGET     9   3      ; 
+0042    TGETV   10   3   8
+0043    TGETS   10  10   4  ; "key"
+0044    TGETV   11   3   8
+0045    TGETS   11  11   5  ; "typ"
+0046    TGETV   12   3   8
+0047    TGETS   12  12   3  ; "count"
+0048    MULVV   12  12   2
+0049    CALL     9   1   4
+0050    FORL     5 => 0041
+0051 => RET0     0   1
+
