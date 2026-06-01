@@ -77,6 +77,12 @@ public final class DiphoneSynth {
         }
     }
 
+    /** Whether a diphone-name char is a vowel (short a e i o u or long á ė ó). */
+    private static boolean isVowelChar(char c) {
+        return c=='a'||c=='e'||c=='i'||c=='o'||c=='u'
+            || c==(char)0xe1 || c==(char)0xeb || c==(char)0xf3;
+    }
+
     /** Look up a unit by name, trying the exact key then simpler fallbacks. */
     private VoiceDatabase.Entry lookup(String key) {
         VoiceDatabase.Entry e = index.get(key);
@@ -123,15 +129,27 @@ public final class DiphoneSynth {
         // isn't doubled.
         List<short[]> segs = new ArrayList<>();
         boolean first = true;
-        for (List<short[]> u : units) {
+        for (int ui = 0; ui < units.size(); ui++) {
+            List<short[]> u = units.get(ui);
             if (u == null || u.isEmpty()) continue;
             List<short[]> use;
             if (first) {
-                use = u;
+                use = new ArrayList<>(u);
                 first = false;
             } else {
                 int drop = Math.min(2, u.size() - 1);
-                use = u.subList(drop, u.size());
+                use = new ArrayList<>(u.subList(drop, u.size()));
+            }
+            // Lengthen vowels: a unit "-XY" ending in a vowel Y carries that vowel
+            // in its final periods. Real speech holds vowels longer than the short
+            // recorded diphone, so repeat the last (steady vowel) period a few
+            // times to give the vowel natural duration. The last period before a
+            // word end gets held longest.
+            char endChar = s.charAt(ui + 1);
+            if (isVowelChar(endChar) && !use.isEmpty()) {
+                short[] lastP = use.get(use.size() - 1);
+                int repeats = (ui + 1 == s.length() - 1) ? 3 : 2; // hold final vowel longer
+                for (int r = 0; r < repeats; r++) use.add(lastP);
             }
             int len = 0; for (short[] p : use) len += p.length;
             short[] seg = new short[len];
@@ -147,7 +165,7 @@ public final class DiphoneSynth {
         // silence straight to full amplitude, which clicks — heard as a spurious
         // plosive 'p' onset on every word (pietuva/pintaras/paue). A short ramp
         // removes the click without audibly softening the real onset.
-        applyFades(pcm, 350);
+        applyFades(pcm, 48);
         return pcm;
     }
 
