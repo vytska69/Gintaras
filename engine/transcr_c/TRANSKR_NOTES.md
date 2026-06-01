@@ -26,3 +26,35 @@ Grapheme→phoneme core. Signature (from KircTranskr1 call):
 - The exact per-grapheme record layout that yields the class nibble + which
   phoneme-output string index. Indexed with a stride near the 0x9b(155) limit.
   Validate emitted phonemes vs the oracle word-by-word once coded.
+
+## Rule-matching engine (d0800–d0978) — DECODED structure
+
+transkr's emission is a CONTEXT-SENSITIVE REWRITE engine. Per input position it
+scans a rule table (base `sb`, stride 28 bytes/record) testing context predicates,
+and on first match emits the rule's phoneme string and advances.
+
+### 28-byte rule record fields (offsets within record)
+- +0x00: char-set ptr — left-context (strchr test on prev char)
+- +0x08: char-set ptr — current/right test
+- +0x0c: char-set ptr — right+1 context
+- +0x10: byte mask (AND against a per-position class byte) + record advance base
+- +0x14: ptr — OUTPUT phoneme string (what gets appended)
+- +0x18: advance (input positions consumed on match)
+- +0x19: skip (positions to jump when class-limit 0x9b/155 exceeded)
+- +1,+2,+3: additional flag/mask bytes (3-bit class checks, `&7`, `&4`)
+
+### KEY FINDING: the rule table is BUILT AT RUNTIME, not static .rodata
+`sb` resolves to `*(0x27ff94)` = **0x288c84 (.bss)**. So init_transcr (via the
+`auto_rules` source array @0xa020c and auto_rules_function, which works on 0xa4=164
+byte structures) CONSTRUCTS the rule table in memory at startup.
+
+### Implication for the port
+Two options to get the EXACT rules:
+1. Dump the constructed table from the oracle's memory after init_transcr
+   (uc.mem_read at 0x288c84, walk 28-byte records) — gives ground-truth rules
+   with no further instruction decoding. PREFERRED.
+2. Decode init_transcr + auto_rules_function to rebuild it (more work).
+
+Next session: implement option 1 — extend transcr_oracle to dump the rule table,
+emit it as transcr_rules.c, then code the 28-byte matcher loop in C and validate
+emitted phonemes vs gen_reference.py word-by-word.
