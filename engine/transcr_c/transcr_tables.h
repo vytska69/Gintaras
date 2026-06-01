@@ -7,3 +7,5 @@ extern const unsigned char TR_VOWELS_BOUND[];
 extern const unsigned char TR_UNVOICED_CONS[];
 #endif
 extern const unsigned char TR_CASEFOLD[][2];
+extern const char *const TR_PHONEMES[];
+extern const int TR_PHONEME_COUNT;
