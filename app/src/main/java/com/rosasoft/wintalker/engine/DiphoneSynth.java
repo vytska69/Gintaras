@@ -90,28 +90,69 @@ public final class DiphoneSynth {
         }
         String s = seq.toString();
 
-        List<short[]> parts = new ArrayList<>();
+        // Resolve each adjacent-pair "-XY" unit to its waveform.
+        List<short[]> units = new ArrayList<>();
         for (int i = 0; i + 1 < s.length(); i++) {
-            // primary: boundary-prefixed pair "-XY"
-            String key = "-" + s.substring(i, i + 2);
-            VoiceDatabase.Entry e = lookup(key);
-            if (e == null) {
-                // fallbacks: long/short vowel swap on either char, then single
-                e = lookupFlexible(s.charAt(i), s.charAt(i + 1));
-            }
-            if (e != null) parts.add(db.unitWaveform(e));
-        }
-        if (parts.isEmpty() && s.length() == 1) {
-            VoiceDatabase.Entry e = lookup("-" + s);
-            if (e != null) parts.add(db.unitWaveform(e));
+            VoiceDatabase.Entry e = lookup("-" + s.substring(i, i + 2));
+            if (e == null) e = lookupFlexible(s.charAt(i), s.charAt(i + 1));
+            units.add(e != null ? db.unitWaveform(e) : null);
         }
 
+        // Join units at the shared phoneme's midpoint so each phoneme renders once.
+        // Unit i is "-X(i)X(i+1)"; it shares X(i+1) with unit i+1. We emit the
+        // first half of unit i (up to its centre) and rely on unit i+1 to carry
+        // the shared phoneme's second half — with a short overlap-add crossfade.
+        final int XF = 64; // crossfade samples (~3 ms) to avoid clicks
+        // Emit the FULL first unit, then each subsequent unit from its centre
+        // onward — so the phoneme shared with the previous unit isn't repeated.
+        // (Unit i ends on X(i+1); unit i+1 begins on the same X(i+1), so we drop
+        //  unit i+1's first half which re-states that shared phoneme.)
+        List<short[]> segs = new ArrayList<>();
+        boolean first = true;
+        for (int i = 0; i < units.size(); i++) {
+            short[] u = units.get(i);
+            if (u == null) continue;
+            if (first) {
+                segs.add(u);
+                first = false;
+            } else {
+                int half = u.length / 2;
+                int from = Math.max(0, half - XF);
+                segs.add(java.util.Arrays.copyOfRange(u, from, u.length));
+            }
+        }
+
+        return overlapAdd(segs, XF);
+    }
+
+    /** Concatenate segments with a linear crossfade of `xf` samples at each join. */
+    private static short[] overlapAdd(List<short[]> segs, int xf) {
+        if (segs.isEmpty()) return new short[0];
         int total = 0;
-        for (short[] p : parts) total += p.length;
-        short[] out = new short[total];
-        int o = 0;
-        for (short[] p : parts) { System.arraycopy(p, 0, out, o, p.length); o += p.length; }
-        return out;
+        for (short[] s : segs) total += s.length;
+        total -= xf * Math.max(0, segs.size() - 1);
+        short[] out = new short[Math.max(total, 0)];
+        int pos = 0;
+        for (int k = 0; k < segs.size(); k++) {
+            short[] s = segs.get(k);
+            int start = 0;
+            if (k > 0) {
+                // crossfade the first xf samples of s into the tail of out
+                int n = Math.min(xf, s.length);
+                int base = pos - n;
+                for (int j = 0; j < n; j++) {
+                    if (base + j < 0 || base + j >= out.length) continue;
+                    float t = (float) j / n;
+                    int mixed = (int) (out[base + j] * (1 - t) + s[j] * t);
+                    out[base + j] = (short) Math.max(-32768, Math.min(32767, mixed));
+                }
+                start = n;
+            }
+            for (int j = start; j < s.length; j++) {
+                if (pos < out.length) out[pos++] = s[j];
+            }
+        }
+        return java.util.Arrays.copyOf(out, pos);
     }
 
     /** Try "-XY" with short↔long vowel substitutions before giving up. */
