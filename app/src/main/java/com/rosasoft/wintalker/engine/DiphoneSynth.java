@@ -39,13 +39,14 @@ public final class DiphoneSynth {
         // strip palatalisation marker for the unit-name lookup
         String base = ph.endsWith("'") ? ph.substring(0, ph.length() - 1) : ph;
         switch (base) {
-            // long/stressed vowels → accented cp1257 (á=0xe1, ó=0xf3, ė=0xeb)
-            case "aA": case "Aa": return (char) 0xe1;
-            case "oO": case "Oo": return (char) 0xf3;
-            case "eE": case "Ee": return (char) 0xeb;
-            case "eA": case "Ea": return 'e';
-            case "iI": return 'i';
-            case "uU": return 'u';
+            // Vowels map to the SHORT cp1257 char by default; the diphone lookup
+            // falls back to the long variant (á/ó/ė) when a short unit is absent.
+            case "aA": case "Aa": case "aa": return 'a';
+            case "oO": case "Oo": case "oo": return 'o';
+            case "eE": case "Ee": case "ee": return 'e';
+            case "eA": case "Ea": case "ea": return 'e';
+            case "iI": case "ii": return 'i';
+            case "uU": case "uu": return 'u';
             // glides and uppercase sonorant variants → their base letter
             case "J": return 'j';
             case "W": return 'v';
@@ -75,32 +76,33 @@ public final class DiphoneSynth {
     }
 
     /**
-     * Synthesize a phoneme token list (space-separated tokens incl. '_' bounds)
-     * into PCM. Forms overlapping 2-phoneme diphone units with boundary markers.
+     * Synthesize a phoneme token list into PCM. The engine's units are
+     * boundary-prefixed phoneme pairs "-XY" (e.g. "labas" = -la, -ab, -ba, -as;
+     * "gintaras" = -gi, -in, -ta, -ar, -ra, -as). We form an overlapping "-XY"
+     * unit for every adjacent phoneme pair and concatenate their waveforms.
      */
     public short[] synthesize(String[] phonemes) {
-        // Build the phoneme-char string with '-' for the '_' boundaries.
+        // phoneme chars (skip the '_' boundary tokens; the '-' is added per unit)
         StringBuilder seq = new StringBuilder();
         for (String p : phonemes) {
-            if (p.equals("_")) seq.append('-');
-            else seq.append(phonemeChar(p));
+            if (p.equals("_")) continue;
+            seq.append(phonemeChar(p));
         }
         String s = seq.toString();
 
         List<short[]> parts = new ArrayList<>();
-        // overlapping diphones: for each adjacent pair, look up "ab"; if missing
-        // try boundary forms and single phonemes.
         for (int i = 0; i + 1 < s.length(); i++) {
-            String di = s.substring(i, i + 2);
-            VoiceDatabase.Entry e = lookup(di);
-            if (e == null && i + 2 < s.length()) {
-                // try triphone with following boundary/char
-                e = lookup(s.substring(i, i + 3));
-            }
+            // primary: boundary-prefixed pair "-XY"
+            String key = "-" + s.substring(i, i + 2);
+            VoiceDatabase.Entry e = lookup(key);
             if (e == null) {
-                // single-phoneme fallback
-                e = lookup(s.substring(i, i + 1));
+                // fallbacks: long/short vowel swap on either char, then single
+                e = lookupFlexible(s.charAt(i), s.charAt(i + 1));
             }
+            if (e != null) parts.add(db.unitWaveform(e));
+        }
+        if (parts.isEmpty() && s.length() == 1) {
+            VoiceDatabase.Entry e = lookup("-" + s);
             if (e != null) parts.add(db.unitWaveform(e));
         }
 
@@ -110,5 +112,28 @@ public final class DiphoneSynth {
         int o = 0;
         for (short[] p : parts) { System.arraycopy(p, 0, out, o, p.length); o += p.length; }
         return out;
+    }
+
+    /** Try "-XY" with short↔long vowel substitutions before giving up. */
+    private VoiceDatabase.Entry lookupFlexible(char a, char b) {
+        char[] altA = vowelAlts(a), altB = vowelAlts(b);
+        for (char ca : altA) for (char cb : altB) {
+            VoiceDatabase.Entry e = lookup("-" + ca + cb);
+            if (e != null) return e;
+        }
+        return null;
+    }
+
+    /** Short/long variants of a vowel char (so -tá matches when -ta is absent). */
+    private static char[] vowelAlts(char c) {
+        switch (c) {
+            case 'a': return new char[]{'a', (char)0xe1};
+            case (char)0xe1: return new char[]{(char)0xe1, 'a'};
+            case 'o': return new char[]{'o', (char)0xf3};
+            case (char)0xf3: return new char[]{(char)0xf3, 'o'};
+            case 'e': return new char[]{'e', (char)0xeb};
+            case (char)0xeb: return new char[]{(char)0xeb, 'e'};
+            default: return new char[]{c};
+        }
     }
 }
