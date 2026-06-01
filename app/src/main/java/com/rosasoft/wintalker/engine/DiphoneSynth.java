@@ -21,10 +21,6 @@ public final class DiphoneSynth {
 
     public static final int SAMPLE_RATE = 22050;
 
-    /** Base pitch period in samples (≈100 Hz), from the voice prosody table
-     *  P0[5]=220. PSOLA places every period at this constant interval. */
-    private static final int PITCH_PERIOD = 220;
-
     private final VoiceDatabase db;
     private final Map<String, VoiceDatabase.Entry> index;
 
@@ -89,17 +85,13 @@ public final class DiphoneSynth {
     }
 
     /**
-     * Synthesize a phoneme token list into PCM using TD-PSOLA.
-     *
-     * Decoded from the original engine (protos p8/p11): each diphone unit is a
-     * sequence of pitch-period sample blocks; the synth lays them down at a
-     * CONSTANT pitch period (base 220 ≈ 100 Hz from prosody P0[5]) by overlap-
-     * adding Hann-windowed periods spaced one pitch period apart. Constant
-     * spacing = steady pitch (no roughness); overlap-add of windowed periods =
-     * no clicks/crackle (continuous waveform); using every period once at fixed
-     * spacing = natural duration. This replaces the earlier ad-hoc concatenation.
+     * Synthesize a phoneme token list into PCM. The engine's units are
+     * boundary-prefixed phoneme pairs "-XY" (e.g. "labas" = -la, -ab, -ba, -as;
+     * "gintaras" = -gi, -in, -ta, -ar, -ra, -as). We form an overlapping "-XY"
+     * unit for every adjacent phoneme pair and concatenate their waveforms.
      */
     public short[] synthesize(String[] phonemes) {
+        // phoneme chars (skip the '_' boundary tokens; the '-' is added per unit)
         StringBuilder seq = new StringBuilder();
         for (String p : phonemes) {
             if (p.equals("_")) continue;
@@ -107,67 +99,77 @@ public final class DiphoneSynth {
         }
         String s = seq.toString();
 
-        // Collect the ordered pitch periods for the whole word: for each adjacent
-        // phoneme pair form the "-XY" unit; drop the small overlap that repeats
-        // the shared phoneme so each phoneme is voiced once.
-        List<short[]> periods = new ArrayList<>();
-        boolean first = true;
+        // Resolve each adjacent-pair "-XY" unit to its list of pitch periods.
+        List<List<short[]>> units = new ArrayList<>();
         for (int i = 0; i + 1 < s.length(); i++) {
             VoiceDatabase.Entry e = lookup("-" + s.substring(i, i + 2));
             if (e == null) e = lookupFlexible(s.charAt(i), s.charAt(i + 1));
-            if (e == null) continue;
-            List<short[]> up = db.unitPeriods(e);
-            if (up.isEmpty()) continue;
-            int start = first ? 0 : Math.min(2, up.size() - 1);
-            for (int k = start; k < up.size(); k++) periods.add(up.get(k));
-            // hold the final vowel a little longer for natural duration
-            if (i + 1 == s.length() - 1 && isVowelChar(s.charAt(i + 1))) {
-                short[] last = up.get(up.size() - 1);
-                periods.add(last); periods.add(last);
-            }
-            first = false;
+            units.add(e != null ? db.unitPeriods(e) : null);
         }
-        if (periods.isEmpty()) return new short[0];
 
-        return psola(periods, PITCH_PERIOD);
-    }
-
-    /**
-     * Time-domain PSOLA: place each pitch period at a constant pitch interval P,
-     * windowed with a Hann window of width 2P and overlap-added. This yields a
-     * steady fundamental and a click-free, continuous waveform regardless of the
-     * stored periods' varying lengths.
-     */
-    private static short[] psola(List<short[]> periods, int P) {
-        int out = periods.size() * P + 2 * P;
-        float[] acc = new float[out];
-        int center = P; // first period centered one P in (room for left half-window)
-        for (short[] period : periods) {
-            int L = period.length;
-            // window width spans 2P; resample the stored period across it so the
-            // period's energy maps onto a 2P Hann grain centered at `center`.
-            int half = P;
-            for (int j = -half; j < half; j++) {
-                int idx = center + j;
-                if (idx < 0 || idx >= out) continue;
-                // sample the source period proportionally to its own length
-                float srcPos = ((j + half) / (float) (2 * half)) * (L - 1);
-                int s0 = (int) srcPos;
-                int s1 = Math.min(s0 + 1, L - 1);
-                float frac = srcPos - s0;
-                float sample = period[s0] * (1 - frac) + period[s1] * frac;
-                // Hann window
-                float w = 0.5f - 0.5f * (float) Math.cos(Math.PI * (j + half) / half);
-                acc[idx] += sample * w;
+        // Build per-unit waveforms by concatenating that unit's periods DIRECTLY
+        // (periods within a unit are consecutive recordings → already phase-
+        // continuous; overlapping them would shorten/distort and raise pitch).
+        // Each unit "-X Y" shares phoneme Y with the next; drop each following
+        // unit's first-half periods (the repeated shared phoneme).
+        // Each '-XY' unit spans X→Y. Adjacent units '-XY' and '-YZ' share phoneme
+        // Y: '-XY' ends in Y's onset, '-YZ' begins in Y's tail. To render Y once
+        // without truncating vowels, drop only a SMALL overlap (a couple of
+        // periods) from the front of each following unit, not its whole first
+        // half — that earlier halving made vowels too short.
+        // Concatenate each unit's stored periods DIRECTLY (no resampling — the
+        // stored periods already carry the correct waveform incl. consonants,
+        // which are NOT pitch-periodic and must not be stretched). Drop each
+        // following unit's repeated onset (~2 periods) so the shared phoneme
+        // isn't doubled.
+        List<short[]> segs = new ArrayList<>();
+        boolean first = true;
+        for (int ui = 0; ui < units.size(); ui++) {
+            List<short[]> u = units.get(ui);
+            if (u == null || u.isEmpty()) continue;
+            List<short[]> use;
+            if (first) {
+                use = new ArrayList<>(u);
+                // Strengthen/lengthen the initial consonant: the first unit "-CV"
+                // packs the onset consonant into its first ~2 periods, too short
+                // and quiet (heard as a weak/absent 'l'). Repeat the very first
+                // period so the onset is held and clearly audible.
+                if (s.length() >= 1 && !isVowelChar(s.charAt(0)) && !u.isEmpty()) {
+                    use.add(0, u.get(0));
+                }
+                first = false;
+            } else {
+                int drop = Math.min(2, u.size() - 1);
+                use = new ArrayList<>(u.subList(drop, u.size()));
             }
-            center += P;
+            // Lengthen vowels: a unit "-XY" ending in a vowel Y carries that vowel
+            // in its final periods. Real speech holds vowels longer than the short
+            // recorded diphone, so repeat the last (steady vowel) period a few
+            // times to give the vowel natural duration. The last period before a
+            // word end gets held longest.
+            char endChar = s.charAt(ui + 1);
+            if (isVowelChar(endChar) && !use.isEmpty()) {
+                short[] lastP = use.get(use.size() - 1);
+                int repeats = (ui + 1 == s.length() - 1) ? 3 : 2; // hold final vowel longer
+                for (int r = 0; r < repeats; r++) use.add(lastP);
+            }
+            // Concatenate the unit's periods with a short crossfade at EACH period
+            // boundary. Periods start near 0 and may end near 0 too, so a hard
+            // concat creates a step (0→several-thousand) every period — heard as a
+            // crackle, especially on repeated vowel periods. A ~12-sample blend at
+            // each boundary removes the step without shortening (we overlap, not cut).
+            segs.add(concatPeriodsSmooth(use, 12));
         }
-        // normalize and convert
-        short[] pcm = new short[out];
-        for (int i = 0; i < out; i++) {
-            int v = Math.round(acc[i]);
-            pcm[i] = (short) Math.max(-32768, Math.min(32767, v));
-        }
+
+        // Smooth amplitude across unit joins. Each diphone unit has its own
+        // loudness; abrupt jumps at joins (e.g. -ab end ~7000 → -ba start ~30000)
+        // are heard as a 'chopped' delivery. Scale each segment's join region so
+        // neighbouring segments meet at a common amplitude.
+        levelJoins(segs);
+
+        // Crossfade at unit joins (~5 ms) so the shared-phoneme handoff is smooth.
+        short[] pcm = overlapAdd(segs, 110);
+
         applyFades(pcm, 48);
         return pcm;
     }
