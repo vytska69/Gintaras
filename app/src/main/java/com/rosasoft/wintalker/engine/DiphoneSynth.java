@@ -159,16 +159,54 @@ public final class DiphoneSynth {
             segs.add(seg);
         }
 
-        // Crossfade ONLY at unit joins (~5 ms) so the shared-phoneme handoff is
-        // smooth, without touching the phase-continuous interior of each unit.
+        // Smooth amplitude across unit joins. Each diphone unit has its own
+        // loudness; abrupt jumps at joins (e.g. -ab end ~7000 → -ba start ~30000)
+        // are heard as a 'chopped' delivery. Scale each segment's join region so
+        // neighbouring segments meet at a common amplitude.
+        levelJoins(segs);
+
+        // Crossfade at unit joins (~5 ms) so the shared-phoneme handoff is smooth.
         short[] pcm = overlapAdd(segs, 110);
 
-        // Fade in/out the very start and end. The first sample block jumps from
-        // silence straight to full amplitude, which clicks — heard as a spurious
-        // plosive 'p' onset on every word (pietuva/pintaras/paue). A short ramp
-        // removes the click without audibly softening the real onset.
         applyFades(pcm, 48);
         return pcm;
+    }
+
+    /** Peak amplitude of the first/last `n` samples of a segment. */
+    private static int edgePeak(short[] s, boolean start, int n) {
+        int peak = 0, m = Math.min(n, s.length);
+        for (int i = 0; i < m; i++) {
+            int v = Math.abs(start ? s[i] : s[s.length - 1 - i]);
+            if (v > peak) peak = v;
+        }
+        return peak;
+    }
+
+    /** Equalise loudness across joins: for each adjacent pair, ramp the tail of
+     *  the left segment and the head of the right segment toward their mean edge
+     *  amplitude, so the transition has no sudden loudness step. */
+    private static void levelJoins(List<short[]> segs) {
+        final int W = 600; // ~27 ms blend region each side of a join
+        for (int k = 0; k + 1 < segs.size(); k++) {
+            short[] L = segs.get(k), R = segs.get(k + 1);
+            int lp = edgePeak(L, false, W), rp = edgePeak(R, true, W);
+            if (lp < 200 || rp < 200) continue; // skip near-silent edges
+            float target = (lp + rp) / 2f;
+            scaleEdge(L, false, W, target / lp);
+            scaleEdge(R, true, W, target / rp);
+        }
+    }
+
+    /** Scale the first/last `n` samples of `s` by a gain that ramps from 1.0 at
+     *  the interior to `g` at the very edge (so the interior is untouched). */
+    private static void scaleEdge(short[] s, boolean start, int n, float g) {
+        int m = Math.min(n, s.length);
+        for (int i = 0; i < m; i++) {
+            float t = (float) i / m;            // 0 at edge … 1 at interior end
+            float gain = g * (1 - t) + 1f * t;  // edge=g, interior=1
+            int idx = start ? i : s.length - 1 - i;
+            s[idx] = (short) Math.max(-32768, Math.min(32767, Math.round(s[idx] * gain)));
+        }
     }
 
     /** Tiny click guard at start (8 samples — preserves onset loudness) and a
