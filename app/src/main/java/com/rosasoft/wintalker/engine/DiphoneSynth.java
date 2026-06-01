@@ -21,6 +21,11 @@ public final class DiphoneSynth {
 
     public static final int SAMPLE_RATE = 22050;
 
+    /** Base pitch period in samples, from the voice's prosody table P0[5]=220
+     *  (22050/220 ≈ 100 Hz). The original resamples every period to this so the
+     *  pitch is steady; using raw varying periods sounds rough. */
+    private static final int TARGET_PERIOD = 220;
+
     private final VoiceDatabase db;
     private final Map<String, VoiceDatabase.Entry> index;
 
@@ -111,6 +116,12 @@ public final class DiphoneSynth {
         // without truncating vowels, drop only a SMALL overlap (a couple of
         // periods) from the front of each following unit, not its whole first
         // half — that earlier halving made vowels too short.
+        // PSOLA: resample every pitch period to a constant target period so the
+        // pitch is steady (the original engine does this — base pitch from the
+        // prosody table P0[5]=220 samples ≈ 100 Hz). Raw stored periods vary
+        // 190..230, which is what made our output rough. Concatenate the
+        // resampled periods of each unit, dropping each following unit's repeated
+        // onset (~2 periods) so the shared phoneme isn't doubled.
         List<short[]> segs = new ArrayList<>();
         boolean first = true;
         for (List<short[]> u : units) {
@@ -120,12 +131,16 @@ public final class DiphoneSynth {
                 use = u;
                 first = false;
             } else {
-                int drop = Math.min(2, u.size() - 1); // trim the repeated onset only
+                int drop = Math.min(2, u.size() - 1);
                 use = u.subList(drop, u.size());
             }
-            int len = 0; for (short[] p : use) len += p.length;
-            short[] seg = new short[len];
-            int o = 0; for (short[] p : use) { System.arraycopy(p, 0, seg, o, p.length); o += p.length; }
+            // resample each period to TARGET_PERIOD and concatenate
+            short[] seg = new short[use.size() * TARGET_PERIOD];
+            int o = 0;
+            for (short[] p : use) {
+                resamplePeriod(p, seg, o, TARGET_PERIOD);
+                o += TARGET_PERIOD;
+            }
             segs.add(seg);
         }
 
@@ -139,6 +154,18 @@ public final class DiphoneSynth {
         // removes the click without audibly softening the real onset.
         applyFades(pcm, 350);
         return pcm;
+    }
+
+    /** Linearly resample one pitch period (src) to `len` samples into dst[off..]. */
+    private static void resamplePeriod(short[] src, short[] dst, int off, int len) {
+        if (src.length == 0) { for (int i = 0; i < len; i++) dst[off + i] = 0; return; }
+        for (int i = 0; i < len; i++) {
+            float srcPos = (float) i * src.length / len;
+            int i0 = (int) srcPos;
+            int i1 = Math.min(i0 + 1, src.length - 1);
+            float frac = srcPos - i0;
+            dst[off + i] = (short) (src[i0] * (1 - frac) + src[i1] * frac);
+        }
     }
 
     /** Linear fade-in at the start and fade-out at the end (n samples each). */
