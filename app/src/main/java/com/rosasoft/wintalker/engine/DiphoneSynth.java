@@ -93,39 +93,62 @@ public final class DiphoneSynth {
         }
         String s = seq.toString();
 
-        // Resolve each adjacent-pair "-XY" unit to its waveform.
-        List<short[]> units = new ArrayList<>();
+        // Resolve each adjacent-pair "-XY" unit to its list of pitch periods.
+        List<List<short[]>> units = new ArrayList<>();
         for (int i = 0; i + 1 < s.length(); i++) {
             VoiceDatabase.Entry e = lookup("-" + s.substring(i, i + 2));
             if (e == null) e = lookupFlexible(s.charAt(i), s.charAt(i + 1));
-            units.add(e != null ? db.unitWaveform(e) : null);
+            units.add(e != null ? db.unitPeriods(e) : null);
         }
 
-        // Join units at the shared phoneme's midpoint so each phoneme renders once.
-        // Unit i is "-X(i)X(i+1)"; it shares X(i+1) with unit i+1. We emit the
-        // first half of unit i (up to its centre) and rely on unit i+1 to carry
-        // the shared phoneme's second half — with a short overlap-add crossfade.
-        final int XF = 64; // crossfade samples (~3 ms) to avoid clicks
-        // Emit the FULL first unit, then each subsequent unit from its centre
-        // onward — so the phoneme shared with the previous unit isn't repeated.
-        // (Unit i ends on X(i+1); unit i+1 begins on the same X(i+1), so we drop
-        //  unit i+1's first half which re-states that shared phoneme.)
-        List<short[]> segs = new ArrayList<>();
+        // PSOLA join AT PITCH-PERIOD BOUNDARIES (no phase break = no jumpiness).
+        // Each unit "-X Y" shares phoneme Y with the next unit. Emit the first
+        // unit's full period list; for every following unit drop its first-half
+        // periods (the repeated shared phoneme) and append the rest. Concatenating
+        // whole periods preserves waveform continuity; a 1-period overlap-add
+        // smooths each junction.
+        List<short[]> periods = new ArrayList<>();
         boolean first = true;
-        for (int i = 0; i < units.size(); i++) {
-            short[] u = units.get(i);
-            if (u == null) continue;
+        for (List<short[]> u : units) {
+            if (u == null || u.isEmpty()) continue;
             if (first) {
-                segs.add(u);
+                periods.addAll(u);
                 first = false;
             } else {
-                int half = u.length / 2;
-                int from = Math.max(0, half - XF);
-                segs.add(java.util.Arrays.copyOfRange(u, from, u.length));
+                int half = u.size() / 2;             // drop repeated shared phoneme
+                for (int k = half; k < u.size(); k++) periods.add(u.get(k));
             }
         }
 
-        return overlapAdd(segs, XF);
+        return concatPeriods(periods);
+    }
+
+    /** Concatenate pitch periods end-to-end with a tiny equal-power overlap-add at
+     *  each boundary to remove residual clicks while preserving period phase. */
+    private static short[] concatPeriods(List<short[]> periods) {
+        if (periods.isEmpty()) return new short[0];
+        final int XF = 24; // ~1 ms overlap at the period seam
+        int total = 0;
+        for (short[] p : periods) total += p.length;
+        total -= XF * Math.max(0, periods.size() - 1);
+        short[] out = new short[Math.max(total, 0)];
+        int pos = 0;
+        for (int k = 0; k < periods.size(); k++) {
+            short[] p = periods.get(k);
+            int start = 0;
+            if (k > 0) {
+                int n = Math.min(XF, Math.min(p.length, pos));
+                int base = pos - n;
+                for (int j = 0; j < n; j++) {
+                    float t = (float) j / n;
+                    int mixed = (int) (out[base + j] * (1 - t) + p[j] * t);
+                    out[base + j] = (short) Math.max(-32768, Math.min(32767, mixed));
+                }
+                start = n;
+            }
+            for (int j = start; j < p.length && pos < out.length; j++) out[pos++] = p[j];
+        }
+        return java.util.Arrays.copyOf(out, pos);
     }
 
     /** Concatenate segments with a linear crossfade of `xf` samples at each join. */

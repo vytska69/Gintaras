@@ -148,6 +148,28 @@ public final class VoiceDatabase {
         return unitWaveform(e, 0);
     }
 
+    /** Returns a unit's individual pitch-period blocks (resolving aliases), in
+     *  order. Each element is one pitch period — the unit for PSOLA joins. */
+    public List<short[]> unitPeriods(Entry e) {
+        return unitPeriods(e, 0);
+    }
+
+    private List<short[]> unitPeriods(Entry e, int depth) {
+        List<short[]> out = new ArrayList<>();
+        if (e == null || depth > 4) return out;
+        if (e.records.size() == 1 && !e.records.get(0).isNumeric()) {
+            Entry t = diphoneIndex().get(unitName(e.records.get(0).stringKey));
+            if (t != null && t != e) return unitPeriods(t, depth + 1);
+            return out;
+        }
+        for (Record r : e.records)
+            if (r.isNumeric()) {
+                SampleBlock b = blocks.get(r.numKey);
+                if (b != null) out.add(b.samples);
+            }
+        return out;
+    }
+
     private short[] unitWaveform(Entry e, int depth) {
         if (e == null || depth > 4) return new short[0];
         // alias: a single string-key record points at another unit by name
