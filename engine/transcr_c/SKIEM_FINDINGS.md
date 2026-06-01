@@ -1,23 +1,21 @@
-# skiem() empirical findings (from oracle differential testing)
+# skiem() / syllabification findings (corrected via proper pipeline context)
 
-skiem marks word/syllable boundaries by +1 on class-flag bytes. Measured behaviour
-over the corpus (golden_skiem.tsv):
+## Key methodology correction
+skiem must be tested AFTER PradApdZod (word preprocessing), not on a raw word.
+PradApdZod normalises, appends a trailing space (0x20), AND sets class-flag bits
+on characters. skiem's disassembly does `tst #1; addne #1` — it increments a byte
+ONLY if bit0 is already set. So in the real pipeline skiem's net change is small;
+the actual syllable/flag information is largely established by PradApdZod.
 
-- **Last position** is marked when the final char is a consonant, or when the word
-  ends in a vowel that forms a diphthong/long nucleus (e.g. KALBA's final A is
-  marked, AI/AO both positions). Pure short final vowels in 2-letter probes differ.
-- **Position 0** is marked when the first char is a vowel (ABRAKADABRA→{0,..};
-  LABYRINTAS→{9} only). Consonant-initial words don't mark pos 0.
-- Longer words mostly reduce to {0?, last} because internal syllable flags use a
-  DIFFERENT bit than the one these probes detect — skiem sets bit0 for some marks
-  and the vowel pass sets bit1; our delta test sees the net low-byte change.
+## Measured behaviour (after PradApdZod)
+- Vowel-initial words: pos 0 gets +1.
+- Consonant-initial: pos 0 marked for first char in {C,G,K,M,S}, not for
+  {B,D,F,H,J,L,N,P,R,T,V,Z}. This reflects which chars PradApdZod pre-flagged
+  (bit0), confirming the signal originates in PradApdZod.
 
-## Current C port status
-tr_skiem (skiem.c) implements the backward nucleus walk; measured 33.6% exact
-match on ASCII probes. The remaining gap is the boundary-vs-vowel bit semantics:
-need to track bit0 (syllable) and bit1 (vowel) separately, matching the original's
-`tst #1`/`tst #2` tests, rather than a single increment. Next: split the flag
-bits and re-measure.
-
-The accuracy harness (test_skiem_accuracy.c) gates this: it reports exact-match %
-against the oracle so each refinement is measured, not assumed.
+## Implication
+The transcription flag state is built primarily by **PradApdZod**, then refined by
+skiem and the rule matcher. Next: decode PradApdZod (@0xd0f58) to recover how it
+sets the class-flag bits, since that is the true source of the per-char flags the
+whole pipeline depends on. The differential harness already supports measuring
+each stage against the oracle.
