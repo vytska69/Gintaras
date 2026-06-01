@@ -128,28 +128,45 @@ public final class VoiceDatabase {
      * units; their numeric records are consecutive sample-block indices = the
      * pitch periods of that diphone.
      */
+    private Map<String, Entry> indexCache;
+
     public Map<String, Entry> diphoneIndex() {
-        Map<String, Entry> idx = new HashMap<>();
-        for (Entry e : entries) {
-            String nm = unitName(e.name);
-            idx.putIfAbsent(nm, e);
+        if (indexCache == null) {
+            indexCache = new HashMap<>();
+            for (Entry e : entries) indexCache.putIfAbsent(unitName(e.name), e);
         }
-        return idx;
+        return indexCache;
     }
 
-    /** Concatenate all pitch-period sample blocks referenced by a diphone entry,
-     *  in record order. Returns 16-bit PCM for that unit. */
+    /**
+     * Concatenate all pitch-period sample blocks referenced by a diphone entry.
+     * Records with a STRING key are ALIASES: the key (UTF-16LE) names another unit
+     * to use instead (e.g. "-et" → "-at", "-uv" → "-ov"). We resolve aliases via
+     * the diphone index so aliased units produce sound instead of silence.
+     */
     public short[] unitWaveform(Entry e) {
+        return unitWaveform(e, 0);
+    }
+
+    private short[] unitWaveform(Entry e, int depth) {
+        if (e == null || depth > 4) return new short[0];
+        // alias: a single string-key record points at another unit by name
+        if (e.records.size() == 1 && !e.records.get(0).isNumeric()) {
+            String target = unitName(e.records.get(0).stringKey);
+            Map<String, Entry> idx = diphoneIndex();
+            Entry t = idx.get(target);
+            if (t != null && t != e) return unitWaveform(t, depth + 1);
+            return new short[0];
+        }
         int total = 0;
-        for (Record r : e.records) {
+        for (Record r : e.records)
             if (r.isNumeric()) {
                 SampleBlock b = blocks.get(r.numKey);
                 if (b != null) total += b.samples.length;
             }
-        }
         short[] out = new short[total];
         int o = 0;
-        for (Record r : e.records) {
+        for (Record r : e.records)
             if (r.isNumeric()) {
                 SampleBlock b = blocks.get(r.numKey);
                 if (b != null) {
@@ -157,7 +174,6 @@ public final class VoiceDatabase {
                     o += b.samples.length;
                 }
             }
-        }
         return out;
     }
 
