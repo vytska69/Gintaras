@@ -311,3 +311,29 @@ contour. Our smoothVoiced→mean is a crude version; the principled fix is to
 resample voiced periods to 220 with a gentle ProsodyChange ramp from P1/P5/P6 —
 NOT a flat 220 (that was the monotone 'voice changer'); the ramp is what makes it
 sound natural.
+
+## CRITICAL DIAGNOSIS: units are NOT uniform diphones (full debug of all units)
+Dumped every unit's records/blocks/typ/energy. Two DISTINCT kinds of '-XY' unit:
+
+1. VOICED multi-period units (typ=1): e.g. -la = 12 periods ~200 samples each,
+   energy rising then falling (a full voiced segment ending in the vowel). -ba,
+   -vi, -du, -na, -in, -ta, -ra similar. These ARE proper CV/voiced diphones.
+
+2. UNVOICED single-block units (typ=0): -as = ONE 2800-sample block, energy ~590
+   = the 's' fricative noise; -ab = one 2200-block, energy 1538 = the 'b' closure;
+   -ar = one 1378-block. These are NOT 'a+consonant' diphones — they are just the
+   CONSONANT segment (fricative/stop), the vowel is NOT in them.
+
+So my model 'every adjacent pair -XY is a diphone covering X→Y' is WRONG. The vowel
+lives only in the voiced CV units; the VC-named units (-as,-ab,-ar) carry only the
+trailing consonant. Concatenating -la + -ab + -ba + -as therefore plays
+l-a (full) + b + b-a (full) + s — the vowels are right but consonants -ab/-ba
+DOUBLE the b, and -as is just s. That mismatch is why words sound 'weird'.
+
+## Implication for correct synthesis
+The right rule is likely: for a phoneme string C1 V1 C2 V2 ... use CV units for
+onset+vowel (-C V) and bare-consonant/coda units for the rest, NOT a -XY for every
+pair. Need to determine the engine's actual unit-selection (phoneorder) rule:
+which unit covers which phoneme span. This is the real fix — current selection
+doubles/mismatches segments. Next: decode phoneorder's unit-picking from the
+phoneme stream rather than guessing pairs.
