@@ -228,3 +228,21 @@ correct data. Next: provide the dictionary inputs loaddictionary needs (or stub
 DICT as an empty table with __index returning ""), then call speak() and CAPTURE
 its PCM — the true reference to match our Java synth against.
 run_original_speak.lua holds the harness.
+
+## Session update: loadvoice prosody works; loaddictionary is the remaining wall
+Confirmed: with our deterministic voice table + loaddatabase stub, loadvoice
+builds P0..P8 prosody correctly. loaddictionary/loadphrase are INTERNAL (not
+exports), so they can't be stubbed — loadvoice always calls them, and
+loaddictionary throws 'compare number with nil' (a raw ISGE/ISEQN bytecode
+compare, not via math.min) reading the dictionary tables.
+
+The dictionary tables are the MAP2-prefixed bucket entries (D/S/V/E/B/N/P names:
+'D.', 'DE', 'N10+3R' intonation rules, etc.). loaddictionary expects a specific
+structure for these that our generic bucket parse doesn't satisfy. Decoding
+loaddictionary's exact expectations is the next step to run the original speak().
+
+## Pragmatic note
+The app already WORKS on-device (pure-Java v1, arm64). Capturing the original PCM
+is a quality-reference effort that's proving multi-layered (loadvoice→
+loaddictionary→loadphrase→speak, each needing exact data shapes). The v1 synthesis
+is functional; the original-reference path continues as a parallel quality track.
