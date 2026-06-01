@@ -101,54 +101,27 @@ public final class DiphoneSynth {
             units.add(e != null ? db.unitPeriods(e) : null);
         }
 
-        // PSOLA join AT PITCH-PERIOD BOUNDARIES (no phase break = no jumpiness).
-        // Each unit "-X Y" shares phoneme Y with the next unit. Emit the first
-        // unit's full period list; for every following unit drop its first-half
-        // periods (the repeated shared phoneme) and append the rest. Concatenating
-        // whole periods preserves waveform continuity; a 1-period overlap-add
-        // smooths each junction.
-        List<short[]> periods = new ArrayList<>();
+        // Build per-unit waveforms by concatenating that unit's periods DIRECTLY
+        // (periods within a unit are consecutive recordings → already phase-
+        // continuous; overlapping them would shorten/distort and raise pitch).
+        // Each unit "-X Y" shares phoneme Y with the next; drop each following
+        // unit's first-half periods (the repeated shared phoneme).
+        List<short[]> segs = new ArrayList<>();
         boolean first = true;
         for (List<short[]> u : units) {
             if (u == null || u.isEmpty()) continue;
-            if (first) {
-                periods.addAll(u);
-                first = false;
-            } else {
-                int half = u.size() / 2;             // drop repeated shared phoneme
-                for (int k = half; k < u.size(); k++) periods.add(u.get(k));
-            }
+            List<short[]> use;
+            if (first) { use = u; first = false; }
+            else       { use = u.subList(u.size() / 2, u.size()); }
+            int len = 0; for (short[] p : use) len += p.length;
+            short[] seg = new short[len];
+            int o = 0; for (short[] p : use) { System.arraycopy(p, 0, seg, o, p.length); o += p.length; }
+            segs.add(seg);
         }
 
-        return concatPeriods(periods);
-    }
-
-    /** Concatenate pitch periods end-to-end with a tiny equal-power overlap-add at
-     *  each boundary to remove residual clicks while preserving period phase. */
-    private static short[] concatPeriods(List<short[]> periods) {
-        if (periods.isEmpty()) return new short[0];
-        final int XF = 24; // ~1 ms overlap at the period seam
-        int total = 0;
-        for (short[] p : periods) total += p.length;
-        total -= XF * Math.max(0, periods.size() - 1);
-        short[] out = new short[Math.max(total, 0)];
-        int pos = 0;
-        for (int k = 0; k < periods.size(); k++) {
-            short[] p = periods.get(k);
-            int start = 0;
-            if (k > 0) {
-                int n = Math.min(XF, Math.min(p.length, pos));
-                int base = pos - n;
-                for (int j = 0; j < n; j++) {
-                    float t = (float) j / n;
-                    int mixed = (int) (out[base + j] * (1 - t) + p[j] * t);
-                    out[base + j] = (short) Math.max(-32768, Math.min(32767, mixed));
-                }
-                start = n;
-            }
-            for (int j = start; j < p.length && pos < out.length; j++) out[pos++] = p[j];
-        }
-        return java.util.Arrays.copyOf(out, pos);
+        // Crossfade ONLY at unit joins (~5 ms) so the shared-phoneme handoff is
+        // smooth, without touching the phase-continuous interior of each unit.
+        return overlapAdd(segs, 110);
     }
 
     /** Concatenate segments with a linear crossfade of `xf` samples at each join. */
