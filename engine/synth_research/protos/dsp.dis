@@ -1,0 +1,131 @@
+-- BYTECODE -- "voicesynth":0-0
+0001    GGET     4   0      ; "math"
+0002    TGETS    4   4   1  ; "floor"
+0003    UGET     5   0      ; 
+0004    UGET     6   1      ; 
+0005    TGETV    5   5   6
+0006    UGET     6   2      ; 
+0007    MULVV    5   5   6
+0008    CALL     4   2   2
+0009    UGET     5   3      ; 
+0010    MOV      6   2
+0011    MOV      7   3
+0012    CALL     5   1   3
+0013    UGET     5   4      ; 
+0014    ADDVV    4   4   5
+0015    UGET     5   5      ; 
+0016    IST          5
+0017    JMP      5 => 0040
+0018    ISF          0
+0019    JMP      5 => 0040
+0020    TDUP     5   2
+0021    UGET     6   6      ; 
+0022    UGET     7   7      ; 
+0023    MOV      8   0
+0024    CALL     7   2   2
+0025    DIVVN    7   7   0  ; 2
+0026    CALL     6   2   2
+0027    TSETS    6   5   3  ; "buffer"
+0028    TSETS    1   5   4  ; "typ"
+0029    TSETS    4   5   5  ; "pitch"
+0030    USETV    5   5      ; 
+0031    UGET     5   8      ; 
+0032    UGET     6   5      ; 
+0033    TGETS    6   6   3  ; "buffer"
+0034    MOV      7   0
+0035    UGET     8   7      ; 
+0036    MOV      9   0
+0037    CALL     8   0   2
+0038    CALLM    5   1   2
+0039    JMP      5 => 0129
+0040 => UGET     5   5      ; 
+0041    ISF          5
+0042    JMP      6 => 0117
+0043    ISF          0
+0044    JMP      5 => 0117
+0045    UGET     5   5      ; 
+0046    TGETS    5   5   3  ; "buffer"
+0047    UGET     6   5      ; 
+0048    TGETS    6   6   4  ; "typ"
+0049    UGET     7   5      ; 
+0050    TGETS    7   7   5  ; "pitch"
+0051    UGET     8   6      ; 
+0052    UGET     9   7      ; 
+0053    MOV     10   0
+0054    CALL     9   2   2
+0055    DIVVN    9   9   0  ; 2
+0056    CALL     8   2   2
+0057    UGET     9   8      ; 
+0058    MOV     10   8
+0059    MOV     11   0
+0060    UGET    12   7      ; 
+0061    MOV     13   0
+0062    CALL    12   0   2
+0063    CALLM    9   1   2
+0064    ISNEN    6   1      ; 1
+0065    JMP      9 => 0103
+0066    UGET     9   7      ; 
+0067    MOV     10   5
+0068    CALL     9   2   2
+0069    DIVVN    9   9   0  ; 2
+0070    UGET    10   6      ; 
+0071    MOV     11   7
+0072    CALL    10   2   2
+0073    UGET    11   8      ; 
+0074    MOV     12  10
+0075    MOV     13   5
+0076    GGET    14   0      ; "math"
+0077    TGETS   14  14   6  ; "min"
+0078    MOV     15   7
+0079    MOV     16   9
+0080    CALL    14   2   3
+0081    MULVN   14  14   0  ; 2
+0082    CALL    11   1   4
+0083    ISGE     9   7
+0084    JMP     11 => 0102
+0085    SUBVN   11   9   1  ; 1
+0086    TGETV   11  10  11
+0087    TGETB   12   8   0
+0088    SUBVV   13  12  11
+0089    SUBVV   14   7   9
+0090    KSHORT  15   0
+0091    SUBVN   16  14   1  ; 1
+0092    KSHORT  17   1
+0093    FORI    15 => 0102
+0094 => ADDVV   19   9  18
+0095    ADDVN   20  18   1  ; 1
+0096    MULVV   20  20  13
+0097    ADDVN   21  14   1  ; 1
+0098    DIVVV   20  20  21
+0099    ADDVV   20  11  20
+0100    TSETV   20  10  19
+0101    FORL    15 => 0094
+0102 => MOV      5  10
+0103 => UGET     9   9      ; 
+0104    MOV     10   5
+0105    MOV     11   8
+0106    CALL     9   1   3
+0107    UGET     9  10      ; 
+0108    TDUP    10   7
+0109    TSETS    5  10   3  ; "buffer"
+0110    CALL     9   1   2
+0111    TDUP     9   8
+0112    TSETS    8   9   3  ; "buffer"
+0113    TSETS    1   9   4  ; "typ"
+0114    TSETS    4   9   5  ; "pitch"
+0115    USETV    5   9      ; 
+0116    JMP      5 => 0129
+0117 => UGET     5   5      ; 
+0118    ISF          5
+0119    JMP      6 => 0129
+0120    IST          0
+0121    JMP      5 => 0129
+0122    UGET     5  10      ; 
+0123    TDUP     6   9
+0124    UGET     7   5      ; 
+0125    TGETS    7   7   3  ; "buffer"
+0126    TSETS    7   6   3  ; "buffer"
+0127    CALL     5   1   2
+0128    USETP    5   0      ; 
+0129 => RET0     0   1
+

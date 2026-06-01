@@ -1,0 +1,390 @@
+-- BYTECODE -- "voicesynth":0-0
+0001    UGET    10   1      ; 
+0002    TGETV   10  10   0
+0003    TGETS   10  10   0  ; "P0"
+0004    TGETS   10  10   1  ; "Prosody"
+0005    USETV    0  10      ; 
+0006    DIVNV   10   2   0  ; 100
+0007    DIVNV   11   3   0  ; 100
+0008    USETV    2  11      ; 
+0009    UGET    11   3      ; 
+0010    TGETV   11  11   0
+0011    MULVV   10  11  10
+0012    USETV    4   4      ; 
+0013    UGET    11   5      ; 
+0014    MOV     12  11
+0015    TGETS   11  11   2  ; "match"
+0016    MOV     13   1
+0017    CALL    11   2   3
+0018    MOV      1  11
+0019    UGET    11   6      ; 
+0020    ISF         11
+0021    JMP     12 => 0027
+0022    UGET    11   6      ; 
+0023    TGETS   11  11   3  ; "tolower"
+0024    MOV     12   1
+0025    CALL    11   2   2
+0026    MOV      1  11
+0027 => ISNES    1   4      ; ""
+0028    JMP     11 => 0030
+0029    RET0     0   1
+0030 => UGET    11   7      ; 
+0031    MOV     12  11
+0032    TGETS   11  11   2  ; "match"
+0033    MOV     13   1
+0034    CALL    11   2   3
+0035    TNEW    12   0
+0036    KSHORT  13   1
+0037    LEN     14  11
+0038    KSHORT  15   1
+0039    FORI    13 => 0056
+0040 => LEN     17  12
+0041    ADDVN   17  17   1  ; 1
+0042    UGET    18   8      ; 
+0043    TGETS   18  18   5  ; "dictconv"
+0044    TGETV   19  11  16
+0045    UGET    20   8      ; 
+0046    TGETS   20  20   6  ; "DICT"
+0047    KSTR    21   7      ; "punc"
+0048    MOV     22   5
+0049    MOV     23   6
+0050    CAT     21  21  23
+0051    TGETV   20  20  21
+0052    KPRI    21   2
+0053    CALL    18   2   4
+0054    TSETV   18  12  17
+0055    FORL    13 => 0040
+0056 => MOV     11  12
+0057    TNEW    12   0
+0058    LEN     13  11
+0059    ISNEN   13   1      ; 1
+0060    JMP     13 => 0065
+0061    TGETB   13  11   1
+0062    LEN     13  13
+0063    ISEQN   13   2      ; 2
+0064    JMP     13 => 0067
+0065 => KPRI    13   1
+0066    JMP     14 => 0068
+0067 => KPRI    13   2
+0068 => ISF         13
+0069    JMP     14 => 0085
+0070    MULVN   10  10   3  ; 1.6
+0071    LEN     14  12
+0072    ADDVN   14  14   1  ; 1
+0073    UGET    15   8      ; 
+0074    TGETS   15  15   5  ; "dictconv"
+0075    TGETB   16  11   1
+0076    UGET    17   8      ; 
+0077    TGETS   17  17   6  ; "DICT"
+0078    KSTR    18   8      ; "spell"
+0079    MOV     19   6
+0080    CAT     18  18  19
+0081    TGETV   17  17  18
+0082    CALL    15   2   3
+0083    TSETV   15  12  14
+0084    JMP     14 => 0108
+0085 => KSHORT  14   1
+0086    LEN     15  11
+0087    KSHORT  16   1
+0088    FORI    14 => 0108
+0089 => LEN     18  12
+0090    ADDVN   18  18   1  ; 1
+0091    ISF          9
+0092    JMP     19 => 0105
+0093    UGET    19   8      ; 
+0094    TGETS   19  19   5  ; "dictconv"
+0095    TGETV   20  11  17
+0096    UGET    21   8      ; 
+0097    TGETS   21  21   6  ; "DICT"
+0098    KSTR    22   9      ; "std"
+0099    MOV     23   6
+0100    CAT     22  22  23
+0101    TGETV   21  21  22
+0102    CALL    19   2   3
+0103    IST         19
+0104    JMP     20 => 0106
+0105 => TGETV   19  11  17
+0106 => TSETV   19  12  18
+0107    FORL    14 => 0089
+0108 => GGET    14  10      ; "table"
+0109    TGETS   14  14  11  ; "concat"
+0110    MOV     15  12
+0111    UGET    16   9      ; 
+0112    CALL    14   2   3
+0113    MOV     12  14
+0114    ISNES   12   4      ; ""
+0115    JMP     14 => 0117
+0116    RET0     0   1
+0117 => UGET    14  10      ; 
+0118    UGET    15  11      ; 
+0119    KSHORT  16   1
+0120    POW     15  15  16
+0121    UGET    16  12      ; 
+0122    KSTR    17  12      ; ".!?,;:()[]{}"
+0123    CALL    16   2   2
+0124    LEN     16  16
+0125    MULVV   15  15  16
+0126    KSTR    16   4      ; ""
+0127    DIVVV   15  15  16
+0128    ADDVN   15  15   2  ; 2
+0129    KSHORT  16   0
+0130    POW     15  15  16
+0131    CALL    14   2   2
+0132    MOV     15  14
+0133    TGETS   14  14   2  ; "match"
+0134    MOV     16  12
+0135    CALL    14   2   3
+0136    MOV     12  14
+0137    UGET    14   7      ; 
+0138    MOV     15  14
+0139    TGETS   14  14   2  ; "match"
+0140    MOV     16  12
+0141    CALL    14   2   3
+0142    MOV     11  14
+0143    LEN     14  11
+0144    ISNEN   14   1      ; 1
+0145    JMP     14 => 0150
+0146    TGETB   14  11   1
+0147    LEN     14  14
+0148    ISEQN   14   2      ; 2
+0149    JMP     14 => 0152
+0150 => KPRI    13   1
+0151    JMP     14 => 0153
+0152 => KPRI    13   2
+0153 => KSHORT  14   1
+0154    LEN     15  11
+0155    KSHORT  16   1
+0156    FORI    14 => 0386
+0157 => TGETV   18  11  17
+0158    LEN     19  11
+0159    ISEQN   19   1      ; 1
+0160    JMP     19 => 0163
+0161    KPRI    19   1
+0162    JMP     20 => 0164
+0163 => KPRI    19   2
+0164 => UGET    20  13      ; 
+0165    MOV     22  18
+0166    TGETS   21  18  13  ; "sub"
+0167    KSHORT  23  -2
+0168    KSHORT  24  -1
+0169    CALL    21   2   4
+0170    TGETV   20  20  21
+0171    IST         20
+0172    JMP     21 => 0174
+0173    KSHORT  20   0
+0174 => UGET    21  10      ; 
+0175    UGET    22  12      ; 
+0176    KSTR    23  14      ; ".!?,;:()[]{}-+"
+0177    CALL    22   2   2
+0178    UGET    23  14      ; 
+0179    MULVV   22  22  23
+0180    KSTR    23   4      ; ""
+0181    DIVVV   22  22  23
+0182    ADDVN   22  22   2  ; 2
+0183    KSHORT  23   0
+0184    POW     22  22  23
+0185    CALL    21   2   2
+0186    MOV     22  21
+0187    TGETS   21  21   2  ; "match"
+0188    MOV     23  18
+0189    CALL    21   2   3
+0190    MOV     18  21
+0191    UGET    21   6      ; 
+0192    ISF         21
+0193    JMP     22 => 0200
+0194    UGET    21   6      ; 
+0195    TGETS   21  21  15  ; "conversion"
+0196    MOV     22  18
+0197    MOV     23  13
+0198    CALL    21   2   3
+0199    MOV     18  21
+0200 => UGET    21  15      ; 
+0201    TGETS   21  21  16  ; "translate"
+0202    MOV     22  18
+0203    KPRI    23   0
+0204    UGET    24  16      ; 
+0205    TGETS   24  24  17  ; "VOICES"
+0206    TGETV   24  24   0
+0207    CALL    21   2   4
+0208    UGET    22   2      ; 
+0209    DIVVV   22  10  22
+0210    TSETS   22  21  18  ; "tempo"
+0211    UGET    22  16      ; 
+0212    TGETS   22  22  17  ; "VOICES"
+0213    TGETV   22  22   0
+0214    KSTR    23  19      ; "E\000"
+0215    MOV     24  18
+0216    CAT     23  23  24
+0217    TGETV   22  22  23
+0218    ISF         22
+0219    JMP     23 => 0240
+0220    KSHORT  23   1
+0221    ISGE    23  17
+0222    JMP     23 => 0240
+0223    UGET    23   0      ; 
+0224    ADDVN   23  23   4  ; 8
+0225    USETV    0  23      ; 
+0226    UGET    23   0      ; 
+0227    KSHORT  24  30
+0228    ISGE    24  23
+0229    JMP     23 => 0231
+0230    USETN    0   5      ;  ; 30
+0231 => UGET    23  17      ; 
+0232    UGET    24   3      ; 
+0233    TGETV   24  24   0
+0234    DIVNV   24  24   6  ; 10
+0235    MULVV   24  24  10
+0236    CALL    23   1   2
+0237    UGET    23  18      ; 
+0238    SUBVN   23  23   2  ; 2
+0239    USETV   18  23      ; 
+0240 => KSTR    23  20      ; ".!;:"
+0241    MOV     24  23
+0242    TGETS   23  23  21  ; "find"
+0243    MOV     25  20
+0244    KSHORT  26   1
+0245    KPRI    27   2
+0246    CALL    23   2   5
+0247    ISF         23
+0248    JMP     24 => 0255
+0249    UGET    23   1      ; 
+0250    TGETV   23  23   0
+0251    TGETS   23  23  22  ; "P7"
+0252    TGETS   23  23  23  ; "ProsodyChange"
+0253    USETV   19  23      ; 
+0254    JMP     23 => 0291
+0255 => ISNES   20  24      ; "?"
+0256    JMP     23 => 0270
+0257    UGET    23   0      ; 
+0258    UGET    24   1      ; 
+0259    TGETV   24  24   0
+0260    TGETS   24  24  25  ; "P8"
+0261    TGETS   24  24  26  ; "ProsodyDifference"
+0262    SUBVV   23  23  24
+0263    USETV    0  23      ; 
+0264    UGET    23   1      ; 
+0265    TGETV   23  23   0
+0266    TGETS   23  23  25  ; "P8"
+0267    TGETS   23  23  23  ; "ProsodyChange"
+0268    USETV   19  23      ; 
+0269    JMP     23 => 0291
+0270 => ISNES   20  27      ; ","
+0271    JMP     23 => 0278
+0272    UGET    23   1      ; 
+0273    TGETV   23  23   0
+0274    TGETS   23  23  28  ; "P6"
+0275    TGETS   23  23  23  ; "ProsodyChange"
+0276    USETV   19  23      ; 
+0277    JMP     23 => 0291
+0278 => ISF         19
+0279    JMP     23 => 0286
+0280    UGET    23   1      ; 
+0281    TGETV   23  23   0
+0282    TGETS   23  23  29  ; "P5"
+0283    TGETS   23  23  23  ; "ProsodyChange"
+0284    USETV   19  23      ; 
+0285    JMP     23 => 0291
+0286 => UGET    23   1      ; 
+0287    TGETV   23  23   0
+0288    TGETS   23  23  30  ; "P1"
+0289    TGETS   23  23  23  ; "ProsodyChange"
+0290    USETV   19  23      ; 
+0291 => UGET    23  20      ; 
+0292    MOV     24  21
+0293    UGET    25  16      ; 
+0294    TGETS   25  25  17  ; "VOICES"
+0295    TGETV   25  25   0
+0296    CALL    23   1   3
+0297    KSTR    23  31      ; ".!?;:)]}"
+0298    MOV     24  23
+0299    TGETS   23  23  21  ; "find"
+0300    MOV     25  20
+0301    KSHORT  26   1
+0302    KPRI    27   2
+0303    CALL    23   2   5
+0304    ISF         23
+0305    JMP     24 => 0334
+0306    UGET    23   1      ; 
+0307    TGETV   23  23   0
+0308    TGETS   23  23   0  ; "P0"
+0309    TGETS   23  23   1  ; "Prosody"
+0310    USETV    0  23      ; 
+0311    UGET    23   1      ; 
+0312    TGETV   23  23   0
+0313    TGETS   23  23   0  ; "P0"
+0314    TGETS   23  23  32  ; "Reset"
+0315    ISF         23
+0316    JMP     24 => 0319
+0317    KSHORT  23   0
+0318    JMP     24 => 0320
+0319 => UGET    23  18      ; 
+0320 => USETV   18  23      ; 
+0321    UGET    23  17      ; 
+0322    UGET    24   1      ; 
+0323    TGETV   24  24   0
+0324    TGETS   24  24  33  ; "P4"
+0325    TGETS   24  24  34  ; "Silence"
+0326    UGET    25   3      ; 
+0327    TGETV   25  25   0
+0328    DIVVV   24  24  25
+0329    MULVV   24  24  10
+0330    MULVV   24  24   8
+0331    DIVVN   24  24   0  ; 100
+0332    CALL    23   1   2
+0333    JMP     23 => 0373
+0334 => ISNES   20  27      ; ","
+0335    JMP     23 => 0354
+0336    UGET    23   1      ; 
+0337    TGETV   23  23   0
+0338    TGETS   23  23  35  ; "P2"
+0339    TGETS   23  23   1  ; "Prosody"
+0340    USETV    0  23      ; 
+0341    UGET    23  17      ; 
+0342    UGET    24   1      ; 
+0343    TGETV   24  24   0
+0344    TGETS   24  24  35  ; "P2"
+0345    TGETS   24  24  34  ; "Silence"
+0346    UGET    25   3      ; 
+0347    TGETV   25  25   0
+0348    DIVVV   24  24  25
+0349    MULVV   24  24  10
+0350    MULVV   24  24   7
+0351    DIVVN   24  24   0  ; 100
+0352    CALL    23   1   2
+0353    JMP     23 => 0373
+0354 => UGET    23   0      ; 
+0355    UGET    24   1      ; 
+0356    TGETV   24  24   0
+0357    TGETS   24  24  36  ; "P3"
+0358    TGETS   24  24  26  ; "ProsodyDifference"
+0359    SUBVV   23  23  24
+0360    USETV    0  23      ; 
+0361    UGET    23  17      ; 
+0362    UGET    24   1      ; 
+0363    TGETV   24  24   0
+0364    TGETS   24  24  36  ; "P3"
+0365    TGETS   24  24  34  ; "Silence"
+0366    UGET    25   3      ; 
+0367    TGETV   25  25   0
+0368    DIVVV   24  24  25
+0369    MULVV   24  24  10
+0370    MULVV   24  24   7
+0371    DIVVN   24  24   0  ; 100
+0372    CALL    23   1   2
+0373 => ISF         19
+0374    JMP     23 => 0385
+0375    UGET    23  17      ; 
+0376    UGET    24   1      ; 
+0377    TGETV   24  24   0
+0378    TGETS   24  24  33  ; "P4"
+0379    TGETS   24  24  34  ; "Silence"
+0380    UGET    25   3      ; 
+0381    TGETV   25  25   0
+0382    DIVVV   24  24  25
+0383    MULVV   24  24  10
+0384    CALL    23   1   2
+0385 => FORL    14 => 0157
+0386 => UGET    14  21      ; 
+0387    CALL    14   1   1
+0388    RET0     0   1
+

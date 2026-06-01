@@ -149,3 +149,38 @@ For a unit sequence U1=-XY, U2=-YZ sharing phoneme Y:
 Since each unit's records ARE the pitch periods, we can split at a period
 boundary near the unit's centre. This removes the doubling and restores onsets.
 Then layer pitch/duration (PSOLA proper).
+
+## loadvoice + speak fully dumped (the path to matching the original)
+Dumped the key protos (engine/synth_research/protos/): loadvoice, the pitch DSP,
+loadphrase/dictconv, phoneorder.
+
+### loadvoice (proto@-43)
+Builds prosody tables P0..P8 from the bucket entries' bytes:
+- P0 = {Prosody = P0bytes[1]+[2], Reset = (P0[4]==1?1:2)}
+- P1 = {ProsodyChange = {P1[5..10]}}
+- P2 = {Prosody = P2[1]+[2], Silence = P2[3], Reset}
+- P3 = {ProsodyDifference = P3[2], Silence = P3[3], Reset}
+- P4 = {Silence = P4[3]}, P5/P6/P7 = {ProsodyChange = {P[5..10]}}
+- P8 = {ProsodyDifference, ProsodyChange}
+- sets pitch globals: g = P0[5]; g2 = P0[6]/100
+Then loaddictionary + loadphrase(name).
+
+### speak/dictconv (proto, 390 ops)
+The phrase synthesiser. Uses P0.Prosody as the base pitch period scale, divides
+the pitch params by 100, matches/lowercases the input, splits into tokens, and per
+diphone applies the pitch DSP.
+
+### pitch DSP (proto@-47/-48)
+For each diphone period: pitch = floor(basePitch * ratio); copies the period's
+'buffer' into the output stretched/compressed to 'pitch' length (PSOLA period
+resampling), keyed by 'typ'. This is where my plain concatenation differs: the
+original RESAMPLES each period to a target pitch length set by the prosody tables,
+giving smooth pitch + correct durations — which is why my version sounds rougher.
+
+## Conclusion for matching the original
+My phoneme→diphone selection and period data are correct (same .dta). The gap is
+the PROSODY-DRIVEN period resampling: the original sets a target pitch period from
+P0/P2 and resamples each stored period to it, instead of using raw period lengths.
+Implement: read P0..P8, compute base pitch period, resample each unit period to the
+prosody target (linear/PSOLA), concatenate. This should match the original's pitch
+and remove the roughness — the principled fix vs ear-tuning.

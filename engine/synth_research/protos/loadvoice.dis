@@ -1,0 +1,258 @@
+-- BYTECODE -- "voicesynth":0-0
+0001    ISNEN    2   0      ; 0
+0002    JMP      3 => 0195
+0003    USETV    0   0      ; 
+0004    UGET     3   1      ; 
+0005    TGETS    3   3   0  ; "loaddatabase"
+0006    UGET     4   0      ; 
+0007    MOV      5   1
+0008    CALL     3   1   3
+0009    UGET     3   1      ; 
+0010    TGETS    3   3   1  ; "VOICES"
+0011    UGET     4   0      ; 
+0012    TGETV    3   3   4
+0013    TGETS    4   3   2  ; "P\0000\000"
+0014    TGETS    5   3   3  ; "P\0001\000"
+0015    TGETS    6   3   4  ; "P\0002\000"
+0016    TGETS    7   3   5  ; "P\0003\000"
+0017    TGETS    8   3   6  ; "P\0004\000"
+0018    TGETS    9   3   7  ; "P\0005\000"
+0019    TGETS   10   3   8  ; "P\0006\000"
+0020    TGETS   11   3   9  ; "P\0007\000"
+0021    TGETS   12   3  10  ; "P\0008\000"
+0022    UGET    13   2      ; 
+0023    UGET    14   0      ; 
+0024    UGET    15   2      ; 
+0025    UGET    16   0      ; 
+0026    TGETV   15  15  16
+0027    IST         15
+0028    JMP     16 => 0030
+0029    TNEW    15   0
+0030 => TSETV   15  13  14
+0031    UGET    13   2      ; 
+0032    UGET    14   0      ; 
+0033    TGETV   13  13  14
+0034    TDUP    14  12
+0035    TGETB   15   4   1
+0036    TGETB   16   4   2
+0037    ADDVV   15  15  16
+0038    TSETS   15  14  13  ; "Prosody"
+0039    TGETB   15   4   4
+0040    ISEQN   15   1      ; 1
+0041    JMP     15 => 0044
+0042    KPRI    15   1
+0043    JMP     16 => 0045
+0044 => KPRI    15   2
+0045 => TSETS   15  14  14  ; "Reset"
+0046    TSETS   14  13  11  ; "P0"
+0047    UGET    13   2      ; 
+0048    UGET    14   0      ; 
+0049    TGETV   13  13  14
+0050    TDUP    14  16
+0051    TNEW    15   7
+0052    TGETB   16   5   5
+0053    TSETB   16  15   1
+0054    TGETB   16   5   6
+0055    TSETB   16  15   2
+0056    TGETB   16   5   7
+0057    TSETB   16  15   3
+0058    TGETB   16   5   8
+0059    TSETB   16  15   4
+0060    TGETB   16   5   9
+0061    TSETB   16  15   5
+0062    TGETB   16   5  10
+0063    TSETB   16  15   6
+0064    TSETS   15  14  17  ; "ProsodyChange"
+0065    TSETS   14  13  15  ; "P1"
+0066    UGET    13   2      ; 
+0067    UGET    14   0      ; 
+0068    TGETV   13  13  14
+0069    TDUP    14  19
+0070    TGETB   15   6   1
+0071    TGETB   16   6   2
+0072    ADDVV   15  15  16
+0073    TSETS   15  14  13  ; "Prosody"
+0074    TGETB   15   6   3
+0075    TSETS   15  14  20  ; "Silence"
+0076    TGETB   15   6   4
+0077    ISEQN   15   1      ; 1
+0078    JMP     15 => 0081
+0079    KPRI    15   1
+0080    JMP     16 => 0082
+0081 => KPRI    15   2
+0082 => TSETS   15  14  14  ; "Reset"
+0083    TSETS   14  13  18  ; "P2"
+0084    UGET    13   2      ; 
+0085    UGET    14   0      ; 
+0086    TGETV   13  13  14
+0087    TDUP    14  22
+0088    TGETB   15   7   2
+0089    TSETS   15  14  23  ; "ProsodyDifference"
+0090    TGETB   15   7   3
+0091    TSETS   15  14  20  ; "Silence"
+0092    TGETB   15   7   4
+0093    ISEQN   15   1      ; 1
+0094    JMP     15 => 0097
+0095    KPRI    15   1
+0096    JMP     16 => 0098
+0097 => KPRI    15   2
+0098 => TSETS   15  14  14  ; "Reset"
+0099    TSETS   14  13  21  ; "P3"
+0100    UGET    13   2      ; 
+0101    UGET    14   0      ; 
+0102    TGETV   13  13  14
+0103    TDUP    14  25
+0104    TGETB   15   8   3
+0105    TSETS   15  14  20  ; "Silence"
+0106    TSETS   14  13  24  ; "P4"
+0107    UGET    13   2      ; 
+0108    UGET    14   0      ; 
+0109    TGETV   13  13  14
+0110    TDUP    14  27
+0111    TNEW    15   7
+0112    TGETB   16   9   5
+0113    TSETB   16  15   1
+0114    TGETB   16   9   6
+0115    TSETB   16  15   2
+0116    TGETB   16   9   7
+0117    TSETB   16  15   3
+0118    TGETB   16   9   8
+0119    TSETB   16  15   4
+0120    TGETB   16   9   9
+0121    TSETB   16  15   5
+0122    TGETB   16   9  10
+0123    TSETB   16  15   6
+0124    TSETS   15  14  17  ; "ProsodyChange"
+0125    TSETS   14  13  26  ; "P5"
+0126    UGET    13   2      ; 
+0127    UGET    14   0      ; 
+0128    TGETV   13  13  14
+0129    TDUP    14  29
+0130    TNEW    15   7
+0131    TGETB   16  10   5
+0132    TSETB   16  15   1
+0133    TGETB   16  10   6
+0134    TSETB   16  15   2
+0135    TGETB   16  10   7
+0136    TSETB   16  15   3
+0137    TGETB   16  10   8
+0138    TSETB   16  15   4
+0139    TGETB   16  10   9
+0140    TSETB   16  15   5
+0141    TGETB   16  10  10
+0142    TSETB   16  15   6
+0143    TSETS   15  14  17  ; "ProsodyChange"
+0144    TSETS   14  13  28  ; "P6"
+0145    UGET    13   2      ; 
+0146    UGET    14   0      ; 
+0147    TGETV   13  13  14
+0148    TDUP    14  31
+0149    TNEW    15   7
+0150    TGETB   16  11   5
+0151    TSETB   16  15   1
+0152    TGETB   16  11   6
+0153    TSETB   16  15   2
+0154    TGETB   16  11   7
+0155    TSETB   16  15   3
+0156    TGETB   16  11   8
+0157    TSETB   16  15   4
+0158    TGETB   16  11   9
+0159    TSETB   16  15   5
+0160    TGETB   16  11  10
+0161    TSETB   16  15   6
+0162    TSETS   15  14  17  ; "ProsodyChange"
+0163    TSETS   14  13  30  ; "P7"
+0164    UGET    13   2      ; 
+0165    UGET    14   0      ; 
+0166    TGETV   13  13  14
+0167    TDUP    14  33
+0168    TGETB   15  12   2
+0169    TSETS   15  14  23  ; "ProsodyDifference"
+0170    TNEW    15   7
+0171    TGETB   16  12   5
+0172    TSETB   16  15   1
+0173    TGETB   16  12   6
+0174    TSETB   16  15   2
+0175    TGETB   16  12   7
+0176    TSETB   16  15   3
+0177    TGETB   16  12   8
+0178    TSETB   16  15   4
+0179    TGETB   16  12   9
+0180    TSETB   16  15   5
+0181    TGETB   16  12  10
+0182    TSETB   16  15   6
+0183    TSETS   15  14  17  ; "ProsodyChange"
+0184    TSETS   14  13  32  ; "P8"
+0185    UGET    13   3      ; 
+0186    UGET    14   0      ; 
+0187    TGETB   15   4   5
+0188    TSETV   15  13  14
+0189    UGET    13   4      ; 
+0190    UGET    14   0      ; 
+0191    TGETB   15   4   6
+0192    DIVVN   15  15   2  ; 100
+0193    TSETV   15  13  14
+0194    JMP      3 => 0256
+0195 => ISEQN    2   1      ; 1
+0196    JMP      3 => 0199
+0197    ISNEN    2   3      ; 8
+0198    JMP      3 => 0216
+0199 => ISNEN    2   3      ; 8
+0200    JMP      3 => 0205
+0201    UGET     3   5      ; 
+0202    TGETS    3   3  34  ; "DICT"
+0203    KPRI     4   0
+0204    TSETV    4   3   0
+0205 => UGET     3   5      ; 
+0206    TGETS    3   3  35  ; "loaddictionary"
+0207    MOV      4   0
+0208    MOV      5   1
+0209    TNEW     6   0
+0210    CALL     3   2   4
+0211    UGET     4   5      ; 
+0212    TGETS    4   4  36  ; "loadphrase"
+0213    MOV      5   3
+0214    CALL     4   1   2
+0215    JMP      3 => 0256
+0216 => ISNEN    2   4      ; 2
+0217    JMP      3 => 0225
+0218    UGET     3   5      ; 
+0219    TGETS    3   3  35  ; "loaddictionary"
+0220    MOV      4   0
+0221    MOV      5   1
+0222    TNEW     6   0
+0223    CALL     3   1   4
+0224    JMP      3 => 0256
+0225 => UGET     3   1      ; 
+0226    TGETS    3   3   1  ; "VOICES"
+0227    UGET     4   0      ; 
+0228    TGETV    3   3   4
+0229    ISF          3
+0230    JMP      4 => 0244
+0231    ISNEN    2   5      ; 3
+0232    JMP      3 => 0244
+0233    UGET     3   5      ; 
+0234    TGETS    3   3  35  ; "loaddictionary"
+0235    MOV      4   0
+0236    MOV      5   1
+0237    UGET     6   1      ; 
+0238    TGETS    6   6   1  ; "VOICES"
+0239    UGET     7   0      ; 
+0240    TGETV    6   6   7
+0241    KPRI     7   2
+0242    CALL     3   1   5
+0243    JMP      3 => 0256
+0244 => KSHORT   3   3
+0245    ISGE     3   2
+0246    JMP      3 => 0256
+0247    KSHORT   3   7
+0248    ISGT     2   3
+0249    JMP      3 => 0256
+0250    UGET     3   5      ; 
+0251    TGETS    3   3  35  ; "loaddictionary"
+0252    MOV      4   0
+0253    MOV      5   1
+0254    TNEW     6   0
+0255    CALL     3   1   4
+0256 => RET0     0   1
+
