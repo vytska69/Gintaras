@@ -111,6 +111,56 @@ public final class VoiceDatabase {
     private int u16(int p) { return (d[p] & 0xFF) | ((d[p + 1] & 0xFF) << 8); }
     private short i16(int p) { return (short) u16(p); }
 
+    /**
+     * The low byte of each UTF-16LE code unit in an entry name is the cp1257
+     * phoneme symbol; returns the decoded unit name (e.g. "-la", "ab").
+     */
+    public static String unitName(byte[] name) {
+        StringBuilder sb = new StringBuilder(name.length / 2);
+        for (int i = 0; i + 1 < name.length; i += 2)
+            sb.append((char) (name[i] & 0xFF));
+        return sb.toString();
+    }
+
+    /**
+     * Builds a diphone index: unit-name → entry. Entry names whose first code
+     * unit's low byte is '-' or that contain only phoneme chars are concatenation
+     * units; their numeric records are consecutive sample-block indices = the
+     * pitch periods of that diphone.
+     */
+    public Map<String, Entry> diphoneIndex() {
+        Map<String, Entry> idx = new HashMap<>();
+        for (Entry e : entries) {
+            String nm = unitName(e.name);
+            idx.putIfAbsent(nm, e);
+        }
+        return idx;
+    }
+
+    /** Concatenate all pitch-period sample blocks referenced by a diphone entry,
+     *  in record order. Returns 16-bit PCM for that unit. */
+    public short[] unitWaveform(Entry e) {
+        int total = 0;
+        for (Record r : e.records) {
+            if (r.isNumeric()) {
+                SampleBlock b = blocks.get(r.numKey);
+                if (b != null) total += b.samples.length;
+            }
+        }
+        short[] out = new short[total];
+        int o = 0;
+        for (Record r : e.records) {
+            if (r.isNumeric()) {
+                SampleBlock b = blocks.get(r.numKey);
+                if (b != null) {
+                    System.arraycopy(b.samples, 0, out, o, b.samples.length);
+                    o += b.samples.length;
+                }
+            }
+        }
+        return out;
+    }
+
     private void run() {
         final int len = d.length;
         pos = 0;
