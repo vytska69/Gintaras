@@ -184,3 +184,29 @@ P0/P2 and resamples each stored period to it, instead of using raw period length
 Implement: read P0..P8, compute base pitch period, resample each unit period to the
 prosody target (linear/PSOLA), concatenate. This should match the original's pitch
 and remove the roughness — the principled fix vs ear-tuning.
+
+## Critical finding: offline loaddatabase is unfixably non-deterministic
+Confirmed the engine's loaddatabase returns 101/116/167-record voice tables across
+runs, with record keys pointing into UNINITIALISED host memory (visible garbage in
+the keys). The per-voice phoneme index is built from FFI pointers that are only
+valid in the original Android process memory layout — they cannot be reproduced on
+the host. So an offline ORIGINAL reference is impossible via Lua, and the ARM .so
+need bionic's /system/bin/linker (can't run under qemu+glibc).
+
+Conclusion: our deterministic file parse is actually MORE correct than the engine's
+offline run. The synthesis gap is the join/prosody algorithm, which we must derive
+from the bytecode + the user's ear, not from a captured reference.
+
+## Objective envelope of our 'labas' (energy per 10ms)
+la: 0-100ms full (~28k), dip to ~2.5k at 110-160ms (b closure), ba: 160-300ms full
+(~32k), s: 300-400ms decay. Both a's are equally loud and the l has no distinct
+weaker onset — so the ear hears 'abas' (two strong a's dominate, l/b weak). This
+matches how concatenated diphones behave without formant-aware amplitude shaping.
+
+## Honest status
+Without an original reference, ear-driven tweaks are hitting diminishing returns on
+single phones. The pragmatic path: accept the current intelligibility level as a
+v1, wire the engine into the arm64 app so it WORKS on-device (the primary goal —
+modern Android, arm64, no native libs), and refine voice quality iteratively from
+there. The transcription (100%) and data layers are solid; synthesis is functional
+if rough.
