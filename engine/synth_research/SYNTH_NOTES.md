@@ -29,3 +29,18 @@ Two options for PSOLA ground truth:
 Option 1 is the cleaner route and reuses stage-2 work. Next session: marshal our
 parsed voice entry into the Lua VOICES shape loadvoice expects, run speak, capture
 PCM.
+
+## Update: deterministic parser ported to Lua; voice structure clarified
+Ported our verified .dta parser to Lua (deterministic_parser.lua): matches Java
+exactly (5928 sample blocks, 1221 dict entries). Confirmed dict entry names are
+UTF-16LE DIPHONE names (e.g. 2d00 e100 = "-á", 6c00 5901 = "l-soft"), with record
+counts 1..31 (1 = a sample-block reference, 11-12 = diphone variant sets).
+
+loadvoice expects ONE voice table with ~160 records of {key,count,typ}. So the
+engine's loaddatabase AGGREGATES the 1221 dict entries into a per-voice phoneme
+index keyed by diphone. The non-determinism we saw was only in how it read a few
+trailing records from FFI memory; the deterministic file parse gives the true set.
+
+Next: build the aggregated 160-record voice table from our deterministic entries
+(group by diphone, attach sample-block arrays), feed to voicesynth.loadvoice +
+speak, capture PCM as PSOLA ground truth.
