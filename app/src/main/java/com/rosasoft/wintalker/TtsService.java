@@ -94,7 +94,9 @@ public class TtsService extends TextToSpeechService {
         stop = false;
         callback.start(SAMPLE_RATE, android.media.AudioFormat.ENCODING_PCM_16BIT, 1);
 
-        // Synthesize each whitespace-separated word, with a short pause between.
+        // Expand digits to Lithuanian words so numbers are spoken (e.g. "12" →
+        // "dvylika"), then synthesize each whitespace-separated word.
+        text = NumberExpander.expand(text);
         short[] pause = new short[(int) (0.18 * SAMPLE_RATE)];
         for (String word : text.split("\\s+")) {
             if (stop) break;
