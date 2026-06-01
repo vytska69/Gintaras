@@ -1,6 +1,4 @@
-# The native engine (librosasofttts.so) binds to TtsService instance fields and
-# native methods by their exact names/signatures via JNI. Renaming breaks the ABI.
+# Pure-Java engine — no JNI/native ABI to preserve. Keep the TTS service and
+# engine classes intact (entry points referenced by the framework / manifest).
 -keep class com.rosasoft.wintalker.TtsService { *; }
--keepclasseswithmembernames class * {
-    native <methods>;
-}
+-keep class com.rosasoft.wintalker.engine.** { *; }

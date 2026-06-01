@@ -11,30 +11,16 @@ android {
         minSdk 26
         targetSdk 35
         versionCode 3
-        versionName "2.0"
-
-        ndk {
-            // armeabi-v7a: reuses the original engine (.so shipped in jniLibs).
-            //   Runs on virtually all current arm64 devices too (they retain
-            //   32-bit support) and on real 32-bit ARM devices.
-            // arm64-v8a: enable ONLY once the ported engine .so are present in
-            //   src/main/jniLibs/arm64-v8a (see engine/port-arm64/). Advertising
-            //   it without the libs would crash on 64-bit-only devices.
-            abiFilters 'armeabi-v7a'
-        }
+        versionName "3.0"
+        // No abiFilters / NDK: the engine is now pure Java (transcriber + diphone
+        // synthesiser reading Gintaras.dta), so the APK is architecture-independent
+        // and runs on arm64-v8a, armeabi-v7a, x86, x86_64 alike. No native libs.
     }
 
-    // Keep the voice data and engine bytecode uncompressed in the APK so they are
-    // read back in full (defends against partial-read bugs and speeds up loading).
+    // Keep the voice data uncompressed in the APK so it is read back in full and
+    // memory-maps quickly.
     androidResources {
-        noCompress 'dta', 'dct', 'rul', 'bin'
-    }
-
-    // We ship prebuilt/ported engine .so directly under src/main/jniLibs.
-    sourceSets {
-        main {
-            jniLibs.srcDirs = ['src/main/jniLibs']
-        }
+        noCompress 'dta'
     }
 
     buildTypes {
@@ -49,13 +35,6 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 
-    // The native engine reads/writes TtsService instance fields by name via JNI.
-    // Never let R8/proguard rename them (see proguard-rules.pro).
-    packagingOptions {
-        jniLibs {
-            useLegacyPackaging true
-        }
-    }
 }
 
 dependencies {

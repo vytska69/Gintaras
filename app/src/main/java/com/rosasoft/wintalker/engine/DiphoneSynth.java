@@ -21,11 +21,6 @@ public final class DiphoneSynth {
 
     public static final int SAMPLE_RATE = 22050;
 
-    /** Base pitch period in samples, from the voice's prosody table P0[5]=220
-     *  (22050/220 ≈ 100 Hz). The original resamples every period to this so the
-     *  pitch is steady; using raw varying periods sounds rough. */
-    private static final int TARGET_PERIOD = 220;
-
     private final VoiceDatabase db;
     private final Map<String, VoiceDatabase.Entry> index;
 
@@ -174,18 +169,6 @@ public final class DiphoneSynth {
         // removes the click without audibly softening the real onset.
         applyFades(pcm, 48);
         return pcm;
-    }
-
-    /** Linearly resample one pitch period (src) to `len` samples into dst[off..]. */
-    private static void resamplePeriod(short[] src, short[] dst, int off, int len) {
-        if (src.length == 0) { for (int i = 0; i < len; i++) dst[off + i] = 0; return; }
-        for (int i = 0; i < len; i++) {
-            float srcPos = (float) i * src.length / len;
-            int i0 = (int) srcPos;
-            int i1 = Math.min(i0 + 1, src.length - 1);
-            float frac = srcPos - i0;
-            dst[off + i] = (short) (src[i0] * (1 - frac) + src[i1] * frac);
-        }
     }
 
     /** Tiny click guard at start (8 samples — preserves onset loudness) and a
