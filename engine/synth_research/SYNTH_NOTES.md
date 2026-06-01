@@ -287,3 +287,27 @@ noise) are passed through as-is. My PSOLA failure resampled EVERYTHING with a Ha
 window → monotone 'voice-changer'. The original uses simple per-period linear
 interpolation, voiced-only, at a pitch that tracks prevPitch*ratio (not a fixed
 constant). This is the precise DSP to port.
+
+## .dta deep-dive + intonation system (per user suggestion to disassemble .dta)
+Sample-block lengths (= pitch periods) span 178..230+, concentrated ~200-210
+(≈105-124 Hz). Within a vowel they JITTER non-monotonically (e.g. -la: 205,218,
+220,217,216,197,215,199,212,205,204,210) — NOT a smooth contour. typ=0x01 for all
+voiced periods (just the voiced bit; no extra pitch metadata in the records).
+
+So the natural pitch is NOT in the stored period order; the engine IMPOSES a pitch
+via the intonation system:
+- loadvoice sets seting_intonace = P0[5] = 220 (base pitch period), working_intonace
+  = P0[6]/100 = 0.62 (pitch change rate).
+- proto7: pitch = floor(working_intonace_pitch * ratio); each VOICED period is
+  linearly resampled to that pitch; UNVOICED passed through.
+- P1..P8 hold ProsodyChange/ProsodyDifference ramps applied per phrase position,
+  so the pitch RISES/FALLS over the utterance (intonation contour), starting from
+  base 220.
+
+KEY: the roughness in our output is the raw period-length JITTER (178..230) played
+back unmodified. The original resamples every voiced period to a smoothly-varying
+target pitch (base 220 ± intonation), eliminating jitter while keeping a natural
+contour. Our smoothVoiced→mean is a crude version; the principled fix is to
+resample voiced periods to 220 with a gentle ProsodyChange ramp from P1/P5/P6 —
+NOT a flat 220 (that was the monotone 'voice changer'); the ramp is what makes it
+sound natural.
