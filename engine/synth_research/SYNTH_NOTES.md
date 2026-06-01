@@ -76,3 +76,31 @@ C/Java: we already read the sample blocks (stage 2) and produce phonemes (stage 
 100%). The remaining work is diphone selection (phoneorder/typ) + the pitch/
 overlap DSP. A first audible version can use plain concatenation (no pitch shift),
 then add PSOLA prosody.
+
+## Diphone dictionary structure (decoded)
+The 1221 dict entries are the diphone/triphone UNIT inventory. Names are UTF-16LE
+where each char's LOW byte is a cp1257 phoneme symbol; high byte distinguishes
+variants (0x00 plain, 0x01/0x1f/0x03/0x04 = positional/stress variants):
+- '-' (0x2d, 868×) marks a word/syllable boundary within the unit
+- Units look like '-án', '-ko', '-og', '-id', '-ul', 'lя-', 'sя-' — boundary +
+  consonant-vowel or vowel-consonant diphones, some triphones ('-ch.', '-.dz').
+- ~1064 phoneme-diphone entries + ~157 prosody/intonation rules (names with
+  digits/'+' like 'N10+3R', 'N3+9R').
+- Phoneme alphabet (low bytes): vowels a e i o u + á(0xe1) ė(0xeb) ó(0xf3), all
+  consonants, and boundary markers.
+
+Each entry's records ({key,count,typ}, count 1..31) point at sample blocks (the
+key indexes the int16 waveform pool); typ&127 selects the variant; multiple
+records = pitch/stress variants of the same diphone.
+
+## Diphone selection (phoneorder, proto@-49)
+For a phoneme sequence, the synth forms overlapping diphone keys (boundary-aware,
+e.g. '_ l aA b aA s _' → '-l', 'la', 'ab', 'ba', 'as', 's-'), looks each up in the
+dict, and for each chooses a record by typ (stress/pitch context), then reads that
+record's sample block. This is classic diphone concatenation.
+
+## Concrete next step
+Build the diphone index in Java (reuse VoiceDatabase): map unit-name → records →
+sample blocks. Then a first synthesiser concatenates the selected blocks for a
+phoneme sequence (no pitch shift) to produce audible PCM. PSOLA pitch/overlap
+(proto@-47,-48) is the quality layer added after.
