@@ -135,6 +135,13 @@ public final class DiphoneSynth {
             List<short[]> use;
             if (first) {
                 use = new ArrayList<>(u);
+                // Strengthen/lengthen the initial consonant: the first unit "-CV"
+                // packs the onset consonant into its first ~2 periods, too short
+                // and quiet (heard as a weak/absent 'l'). Repeat the very first
+                // period so the onset is held and clearly audible.
+                if (s.length() >= 1 && !isVowelChar(s.charAt(0)) && !u.isEmpty()) {
+                    use.add(0, u.get(0));
+                }
                 first = false;
             } else {
                 int drop = Math.min(2, u.size() - 1);
@@ -181,14 +188,14 @@ public final class DiphoneSynth {
         }
     }
 
-    /** Linear fade-in at the start and fade-out at the end (n samples each). */
+    /** Tiny click guard at start (8 samples — preserves onset loudness) and a
+     *  longer fade-out at the end. */
     private static void applyFades(short[] pcm, int n) {
-        int m = Math.min(n, pcm.length / 2);
-        for (int i = 0; i < m; i++) {
-            float t = (float) i / m;
-            pcm[i] = (short) (pcm[i] * t);
-            pcm[pcm.length - 1 - i] = (short) (pcm[pcm.length - 1 - i] * t);
-        }
+        int head = Math.min(8, pcm.length / 2);   // just enough to avoid the click
+        for (int i = 0; i < head; i++) pcm[i] = (short) (pcm[i] * ((float) i / head));
+        int tail = Math.min(n, pcm.length / 2);
+        for (int i = 0; i < tail; i++)
+            pcm[pcm.length - 1 - i] = (short) (pcm[pcm.length - 1 - i] * ((float) i / tail));
     }
 
     /** Concatenate segments with a linear crossfade of `xf` samples at each join. */
