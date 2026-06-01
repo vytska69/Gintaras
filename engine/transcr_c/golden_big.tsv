@@ -1,0 +1,348 @@
+# word	normalized	norm_cp1257_hex	phonemes(space-separated)	return
+aa	AA 	414120	_ aA aA _	9
+ab	AB 	414220	_ aA p _	8
+ac	AC 	414320	_ aA ts _	9
+ad	AD 	414420	_ aA t _	8
+ae	AE 	414520	_ aA eA _	9
+af	AF 	414620	_ aA f _	8
+ag	AG 	414720	_ aA k _	8
+agurkas	AGURKAS 	414755524b415320	_ aA g u R k aA s _	19
+ah	AH 	414820	_ aA h _	8
+ai	AI 	414920	_ aA J _	8
+aj	AJ 	414a20	_ aA j' _	9
+ak	AK 	414b20	_ aA k _	8
+al	AL 	414c20	_ aA L _	8
+am	AM 	414d20	_ aA M _	8
+an	AN 	414e20	_ aA N _	8
+ao	AO 	414f20	_ aA oO _	9
+ap	AP 	415020	_ aA p _	8
+ar	AR 	415220	_ aA R _	8
+as	AS 	415320	_ aA s _	8
+at	AT 	415420	_ aA t _	8
+au	AU 	415520	_ aA W _	8
+automobilis	AUTOMOBILIS 	4155544f4d4f42494c495320	_ aA W t oO m oO b' i l' i s _	30
+av	AV 	415620	_ aA v _	8
+ay	AY 	415920	_ aA iI _	9
+az	AZ 	415a20	_ aA s _	8
+aą	AĄ 	41c020	_ aA aA _	9
+ač	AČ 	41c820	_ aA tS _	9
+ačiū	AČIŪ 	41c849db20	_ aA tS' uU _	13
+aė	AĖ 	41cb20	_ aA eE _	9
+aę	AĘ 	41c620	_ aA eA _	9
+aį	AĮ 	41c120	_ aA iI _	9
+aš	AŠ 	41d020	_ aA S _	8
+aštuoni	AŠTUONI 	41d054554f4e4920	_ aA S t u oO n' i _	20
+aū	AŪ 	41db20	_ aA uU _	9
+aų	AŲ 	41d820	_ aA uU _	9
+až	AŽ 	41de20	_ aA S _	8
+ba	BA 	424120	_ b aA _	8
+balsas	BALSAS 	42414c53415320	_ b aA L s aA s _	17
+be	BE 	424520	_ b' eA _	9
+bi	BI 	424920	_ b' i _	8
+bo	BO 	424f20	_ b oO _	8
+brolis	BROLIS 	42524f4c495320	_ b R oO l' i s _	17
+bu	BU 	425520	_ b u _	7
+bulvė	BULVĖ 	42554c56cb20	_ b u L' v' eE _	16
+ca	CA 	434120	_ ts aA _	9
+ce	CE 	434520	_ ts' eA _	10
+ci	CI 	434920	_ ts' i _	9
+co	CO 	434f20	_ ts oO _	9
+cu	CU 	435520	_ ts u _	8
+da	DA 	444120	_ d aA _	8
+darbas	DARBAS 	44415242415320	_ d aA R b aA s _	17
+de	DE 	444520	_ d' eA _	9
+devyni	DEVYNI 	444556594e4920	_ d' eA v' iI n' i _	20
+dešimt	DEŠIMT 	4445d0494d5420	_ d' eA S' i M t _	18
+di	DI 	444920	_ d' i _	8
+diena	DIENA 	4449454e4120	_ d' i eA n aA _	16
+do	DO 	444f20	_ d oO _	8
+draugas	DRAUGAS 	4452415547415320	_ d R aA W g aA s _	19
+du	DU 	445520	_ d u _	7
+ea	EA 	454120	_ eA aA _	9
+eb	EB 	454220	_ eA p _	8
+ec	EC 	454320	_ eA ts _	9
+ed	ED 	454420	_ eA t _	8
+ee	EE 	454520	_ eA eA _	9
+ef	EF 	454620	_ eA f _	8
+eg	EG 	454720	_ eA k _	8
+eh	EH 	454820	_ eA h _	8
+ei	EI 	454920	_ eA J _	8
+ej	EJ 	454a20	_ eA j' _	9
+ek	EK 	454b20	_ eA k _	8
+el	EL 	454c20	_ eA L _	8
+em	EM 	454d20	_ eA M _	8
+en	EN 	454e20	_ eA N _	8
+eo	EO 	454f20	_ eA oO _	9
+ep	EP 	455020	_ eA p _	8
+er	ER 	455220	_ eA R _	8
+es	ES 	455320	_ eA s _	8
+et	ET 	455420	_ eA t _	8
+eu	EU 	455520	_ eA W _	8
+ev	EV 	455620	_ eA v _	8
+ey	EY 	455920	_ eA iI _	9
+ez	EZ 	455a20	_ eA s _	8
+eą	EĄ 	45c020	_ eA aA _	9
+eč	EČ 	45c820	_ eA tS _	9
+eė	EĖ 	45cb20	_ eA eE _	9
+eę	EĘ 	45c620	_ eA eA _	9
+eį	EĮ 	45c120	_ eA iI _	9
+eš	EŠ 	45d020	_ eA S _	8
+eū	EŪ 	45db20	_ eA uU _	9
+eų	EŲ 	45d820	_ eA uU _	9
+ež	EŽ 	45de20	_ eA S _	8
+fa	FA 	464120	_ f aA _	8
+fe	FE 	464520	_ f' eA _	9
+fi	FI 	464920	_ f' i _	8
+fo	FO 	464f20	_ f oO _	8
+fu	FU 	465520	_ f u _	7
+ga	GA 	474120	_ g aA _	8
+ge	GE 	474520	_ g' eA _	9
+gi	GI 	474920	_ g' i _	8
+gintaras	GINTARAS 	47494e544152415320	_ g' i N t aA r aA s _	22
+go	GO 	474f20	_ g oO _	8
+gu	GU 	475520	_ g u _	7
+ha	HA 	484120	_ h aA _	8
+he	HE 	484520	_ h' eA _	9
+hi	HI 	484920	_ h' i _	8
+ho	HO 	484f20	_ h oO _	8
+hu	HU 	485520	_ h u _	7
+ia	IA 	494120	_ eA _	6
+ib	IB 	494220	_ i p _	7
+ic	IC 	494320	_ i ts _	8
+id	ID 	494420	_ i t _	7
+ie	IE 	494520	_ i eA _	8
+if	IF 	494620	_ i f _	7
+ig	IG 	494720	_ i k _	7
+ih	IH 	494820	_ i h _	7
+ii	II 	494920	_ i i _	7
+ij	IJ 	494a20	_ i j' _	8
+ik	IK 	494b20	_ i k _	7
+il	IL 	494c20	_ i L _	7
+im	IM 	494d20	_ i M _	7
+in	IN 	494e20	_ i N _	7
+io	IO 	494f20	_ oO _	6
+ip	IP 	495020	_ i p _	7
+ir	IR 	495220	_ i R _	7
+is	IS 	495320	_ i s _	7
+it	IT 	495420	_ i t _	7
+iu	IU 	495520	_ u _	5
+iv	IV 	495620	_ i v _	7
+iy	IY 	495920	_ i iI _	8
+iz	IZ 	495a20	_ i s _	7
+ią	IĄ 	49c020	_ eA _	6
+ič	IČ 	49c820	_ i tS _	8
+iė	IĖ 	49cb20	_ i eE _	8
+ię	IĘ 	49c620	_ i eA _	8
+iį	IĮ 	49c120	_ i iI _	8
+iš	IŠ 	49d020	_ i S _	7
+iū	IŪ 	49db20	_ uU _	6
+ių	IŲ 	49d820	_ uU _	6
+iž	IŽ 	49de20	_ i S _	7
+ja	JA 	4a4120	_ j' eA _	9
+je	JE 	4a4520	_ j' eA _	9
+ji	JI 	4a4920	_ j' i _	8
+jo	JO 	4a4f20	_ j' oO _	9
+ju	JU 	4a5520	_ j' u _	8
+ka	KA 	4b4120	_ k aA _	8
+kalba	KALBA 	4b414c424120	_ k aA L b aA _	15
+ke	KE 	4b4520	_ k' eA _	9
+kelias	KELIAS 	4b454c49415320	_ k' eA l' eA s _	17
+keturi	KETURI 	4b455455524920	_ k' eA t u r' i _	18
+ki	KI 	4b4920	_ k' i _	8
+knyga	KNYGA 	4b4e59474120	_ k' N' iI g aA _	17
+ko	KO 	4b4f20	_ k oO _	8
+kompiuteris	KOMPIUTERIS 	4b4f4d504955544552495320	_ k oO M' p' u t' eA r' i s _	29
+ku	KU 	4b5520	_ k u _	7
+la	LA 	4c4120	_ l aA _	8
+labas	LABAS 	4c4142415320	_ l aA b aA s _	15
+laisvė	LAISVĖ 	4c41495356cb20	_ l aA J s' v' eE _	19
+le	LE 	4c4520	_ l' eA _	9
+li	LI 	4c4920	_ l' i _	8
+lietuva	LIETUVA 	4c49455455564120	_ l' i eA t u v aA _	20
+lo	LO 	4c4f20	_ l oO _	8
+lu	LU 	4c5520	_ l u _	7
+lėktuvas	LĖKTUVAS 	4ccb4b545556415320	_ l' eE k t u v aA s _	22
+ma	MA 	4d4120	_ m aA _	8
+mama	MAMA 	4d414d4120	_ m aA m aA _	13
+me	ME 	4d4520	_ m' eA _	9
+meilė	MEILĖ 	4d45494ccb20	_ m' eA J l' eE _	17
+mi	MI 	4d4920	_ m' i _	8
+miestas	MIESTAS 	4d49455354415320	_ m' i eA s t aA s _	20
+mo	MO 	4d4f20	_ m oO _	8
+mokykla	MOKYKLA 	4d4f4b594b4c4120	_ m oO k' iI k L aA _	21
+mu	MU 	4d5520	_ m u _	7
+na	NA 	4e4120	_ n aA _	8
+naktis	NAKTIS 	4e414b54495320	_ n aA k' t' i s _	18
+namas	NAMAS 	4e414d415320	_ n aA m aA s _	15
+ne	NE 	4e4520	_ n' eA _	9
+ni	NI 	4e4920	_ n' i _	8
+no	NO 	4e4f20	_ n oO _	8
+nu	NU 	4e5520	_ n u _	7
+oa	OA 	4f4120	_ oO aA _	9
+ob	OB 	4f4220	_ oO p _	8
+obuolys	OBUOLYS 	4f42554f4c595320	_ oO b u oO l' iI s _	21
+oc	OC 	4f4320	_ oO ts _	9
+od	OD 	4f4420	_ oO t _	8
+oe	OE 	4f4520	_ oO eA _	9
+of	OF 	4f4620	_ oO f _	8
+og	OG 	4f4720	_ oO k _	8
+oh	OH 	4f4820	_ oO h _	8
+oi	OI 	4f4920	_ oO J _	8
+oj	OJ 	4f4a20	_ oO j' _	9
+ok	OK 	4f4b20	_ oO k _	8
+ol	OL 	4f4c20	_ oO L _	8
+om	OM 	4f4d20	_ oO M _	8
+on	ON 	4f4e20	_ oO N _	8
+oo	OO 	4f4f20	_ oO oO _	9
+op	OP 	4f5020	_ oO p _	8
+or	OR 	4f5220	_ oO R _	8
+os	OS 	4f5320	_ oO s _	8
+ot	OT 	4f5420	_ oO t _	8
+ou	OU 	4f5520	_ oO W _	8
+ov	OV 	4f5620	_ oO v _	8
+oy	OY 	4f5920	_ oO iI _	9
+oz	OZ 	4f5a20	_ oO s _	8
+oą	OĄ 	4fc020	_ oO aA _	9
+oč	OČ 	4fc820	_ oO tS _	9
+oė	OĖ 	4fcb20	_ oO eE _	9
+oę	OĘ 	4fc620	_ oO eA _	9
+oį	OĮ 	4fc120	_ oO iI _	9
+oš	OŠ 	4fd020	_ oO S _	8
+oū	OŪ 	4fdb20	_ oO uU _	9
+oų	OŲ 	4fd820	_ oO uU _	9
+ož	OŽ 	4fde20	_ oO S _	8
+pa	PA 	504120	_ p aA _	8
+pe	PE 	504520	_ p' eA _	9
+penki	PENKI 	50454e4b4920	_ p' eA N' k' i _	17
+pi	PI 	504920	_ p' i _	8
+po	PO 	504f20	_ p oO _	8
+pomidoras	POMIDORAS 	504f4d49444f52415320	_ p oO m' i d oO r aA s _	25
+pu	PU 	505520	_ p u _	7
+ra	RA 	524120	_ r aA _	8
+re	RE 	524520	_ r' eA _	9
+ri	RI 	524920	_ r' i _	8
+ro	RO 	524f20	_ r oO _	8
+ru	RU 	525520	_ r u _	7
+rytas	RYTAS 	525954415320	_ r' iI t aA s _	16
+sa	SA 	534120	_ s aA _	8
+saulė	SAULĖ 	5341554ccb20	_ s aA W l' eE _	16
+se	SE 	534520	_ s' eA _	9
+senelis	SENELIS 	53454e454c495320	_ s' eA n' eA l' i s _	22
+septyni	SEPTYNI 	53455054594e4920	_ s' eA p' t' iI n' i _	23
+sesuo	SESUO 	534553554f20	_ s' eA s u oO _	16
+si	SI 	534920	_ s' i _	8
+so	SO 	534f20	_ s oO _	8
+su	SU 	535520	_ s u _	7
+ta	TA 	544120	_ t aA _	8
+te	TE 	544520	_ t' eA _	9
+tekstas	TEKSTAS 	54454b5354415320	_ t' eA k s t aA s _	20
+telefonas	TELEFONAS 	54454c45464f4e415320	_ t' eA l' eA f oO n aA s _	27
+ti	TI 	544920	_ t' i _	8
+to	TO 	544f20	_ t oO _	8
+traukinys	TRAUKINYS 	545241554b494e595320	_ t R aA W k' i n' iI s _	25
+trys	TRYS 	5452595320	_ t' R' iI s _	14
+tu	TU 	545520	_ t u _	7
+tėtis	TĖTIS 	54cb54495320	_ t' eE t' i s _	16
+tėvynė	TĖVYNĖ 	54cb56594ecb20	_ t' eE v' iI n' eE _	21
+ua	UA 	554120	_ u aA _	8
+ub	UB 	554220	_ u p _	7
+uc	UC 	554320	_ u ts _	8
+ud	UD 	554420	_ u t _	7
+ue	UE 	554520	_ u eA _	8
+uf	UF 	554620	_ u f _	7
+ug	UG 	554720	_ u k _	7
+uh	UH 	554820	_ u h _	7
+ui	UI 	554920	_ u J _	7
+uj	UJ 	554a20	_ u j' _	8
+uk	UK 	554b20	_ u k _	7
+ul	UL 	554c20	_ u L _	7
+um	UM 	554d20	_ u M _	7
+un	UN 	554e20	_ u N _	7
+uo	UO 	554f20	_ u oO _	8
+up	UP 	555020	_ u p _	7
+ur	UR 	555220	_ u R _	7
+us	US 	555320	_ u s _	7
+ut	UT 	555420	_ u t _	7
+uu	UU 	555520	_ u u _	7
+uv	UV 	555620	_ u v _	7
+uy	UY 	555920	_ u iI _	8
+uz	UZ 	555a20	_ u s _	7
+uą	UĄ 	55c020	_ u aA _	8
+uč	UČ 	55c820	_ u tS _	8
+uė	UĖ 	55cb20	_ u eE _	8
+uę	UĘ 	55c620	_ u eA _	8
+uį	UĮ 	55c120	_ u iI _	8
+uš	UŠ 	55d020	_ u S _	7
+uū	UŪ 	55db20	_ u uU _	8
+uų	UŲ 	55d820	_ u uU _	8
+už	UŽ 	55de20	_ u S _	7
+va	VA 	564120	_ v aA _	8
+vaikas	VAIKAS 	5641494b415320	_ v aA J k aA s _	17
+vakaras	VAKARAS 	56414b4152415320	_ v aA k aA r aA s _	20
+vanduo	VANDUO 	56414e44554f20	_ v aA N d u oO _	17
+ve	VE 	564520	_ v' eA _	9
+vi	VI 	564920	_ v' i _	8
+vienas	VIENAS 	5649454e415320	_ v' i eA n aA s _	18
+vo	VO 	564f20	_ v oO _	8
+vu	VU 	565520	_ v u _	7
+ya	YA 	594120	_ iI aA _	9
+ye	YE 	594520	_ iI eA _	9
+yi	YI 	594920	_ iI i _	8
+yo	YO 	594f20	_ iI oO _	9
+yu	YU 	595520	_ iI u _	8
+za	ZA 	5a4120	_ z aA _	8
+ze	ZE 	5a4520	_ z' eA _	9
+zi	ZI 	5a4920	_ z' i _	8
+zo	ZO 	5a4f20	_ z oO _	8
+zu	ZU 	5a5520	_ z u _	7
+ąa	ĄA 	c04120	_ aA aA _	9
+ąe	ĄE 	c04520	_ aA eA _	9
+ąi	ĄI 	c04920	_ aA i _	8
+ąo	ĄO 	c04f20	_ aA oO _	9
+ąu	ĄU 	c05520	_ aA u _	8
+ąžuolas	ĄŽUOLAS 	c0de554f4c415320	_ aA Z u oO l aA s _	20
+ča	ČA 	c84120	_ tS aA _	9
+če	ČE 	c84520	_ tS' eA _	10
+či	ČI 	c84920	_ tS' i _	9
+čo	ČO 	c84f20	_ tS oO _	9
+ču	ČU 	c85520	_ tS u _	8
+ėa	ĖA 	cb4120	_ eE aA _	9
+ėe	ĖE 	cb4520	_ eE eA _	9
+ėi	ĖI 	cb4920	_ eE i _	8
+ėo	ĖO 	cb4f20	_ eE oO _	9
+ėu	ĖU 	cb5520	_ eE u _	8
+ęa	ĘA 	c64120	_ eA aA _	9
+ęe	ĘE 	c64520	_ eA eA _	9
+ęi	ĘI 	c64920	_ eA i _	8
+ęo	ĘO 	c64f20	_ eA oO _	9
+ęu	ĘU 	c65520	_ eA u _	8
+įa	ĮA 	c14120	_ iI aA _	9
+įe	ĮE 	c14520	_ iI eA _	9
+įi	ĮI 	c14920	_ iI i _	8
+įo	ĮO 	c14f20	_ iI oO _	9
+įu	ĮU 	c15520	_ iI u _	8
+ša	ŠA 	d04120	_ S aA _	8
+še	ŠE 	d04520	_ S' eA _	9
+šeši	ŠEŠI 	d045d04920	_ S' eA S' i _	14
+ši	ŠI 	d04920	_ S' i _	8
+šimtas	ŠIMTAS 	d0494d54415320	_ S' i M t aA s _	17
+šo	ŠO 	d04f20	_ S oO _	8
+šu	ŠU 	d05520	_ S u _	7
+šuo	ŠUO 	d0554f20	_ S u oO _	10
+ūa	ŪA 	db4120	_ uU aA _	9
+ūe	ŪE 	db4520	_ uU eA _	9
+ūi	ŪI 	db4920	_ uU i _	8
+ūo	ŪO 	db4f20	_ uU oO _	9
+ūu	ŪU 	db5520	_ uU u _	8
+ųa	ŲA 	d84120	_ uU aA _	9
+ųe	ŲE 	d84520	_ uU eA _	9
+ųi	ŲI 	d84920	_ uU i _	8
+ųo	ŲO 	d84f20	_ uU oO _	9
+ųu	ŲU 	d85520	_ uU u _	8
+ža	ŽA 	de4120	_ Z aA _	8
+že	ŽE 	de4520	_ Z' eA _	9
+ži	ŽI 	de4920	_ Z' i _	8
+žmogus	ŽMOGUS 	de4d4f47555320	_ Z M oO g u s _	16
+žo	ŽO 	de4f20	_ Z oO _	8
+žu	ŽU 	de5520	_ Z u _	7
+žąsis	ŽĄSIS 	dec053495320	_ Z aA s' i s _	15
