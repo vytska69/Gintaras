@@ -129,3 +129,23 @@ needs correction:
    stressed/long phoneme variants the transcriber marks.
 3. Concatenate the matched unit waveforms (still no PSOLA yet) and re-listen.
 This should sharply improve vowel intelligibility.
+
+## Overlap problem identified (feedback: "intaras" — initial g lost, i doubled)
+Coverage is good: gintaras = -gi,-in,(-nt miss),-ta,-ar,-ra,-as — only the C-C
+pair -nt is absent (clusters aren't stored as units; the boundary just breaks
+there). The g IS present (-gi = 1885 samples).
+
+The real issue is CONCATENATION of FULL overlapping diphones. Each '-XY' unit
+spans from the centre of X to the centre of Y. Adjacent units share a phoneme:
+-gi (g→i) then -in (i→n) BOTH contain a full 'i', so 'i' plays twice and the
+short initial 'g' is swamped → "intaras". Classic diphone synthesis requires
+joining units at the SHARED phoneme's midpoint, not concatenating them whole.
+
+## Fix (the PSOLA join, next)
+For a unit sequence U1=-XY, U2=-YZ sharing phoneme Y:
+1. Locate Y's region in each unit (its pitch periods).
+2. Emit U1 up to the middle of its Y, then U2 from the middle of its Y onward —
+   so each shared phoneme is rendered once, with a smooth overlap-add at the join.
+Since each unit's records ARE the pitch periods, we can split at a period
+boundary near the unit's centre. This removes the doubling and restores onsets.
+Then layer pitch/duration (PSOLA proper).
