@@ -269,3 +269,21 @@ round(ratio) times, where ratio normalises total length to the prosody target
 (base period 220 from P0[5]). This is exactly the PSOLA period-repetition we
 should implement: pick target period = 220, emit each stored period (resampled to
 220) round(count*ratio) times. This is the principled fix derived from p8/p11.
+
+## DECODED the real pitch DSP (proto7) — linear period interpolation, voiced-only
+proto7 is the per-period sample writer. Algorithm:
+- pitch = floor(prevPitch * ratio)        -- target output period length
+- if typ == 1 (VOICED):
+    take the source period 'buffer' and write 'pitch' samples by LINEAR
+    INTERPOLATION across it: for i in 0..pitch-1:
+      out[i] = buffer[i] + (delta_to_next * (i+1)) / (len+1)
+    (lines 83-101: SUBVV delta, FORI loop, ADDVV/MULVV/DIVVV = lerp)
+- if typ == 0 (UNVOICED): copy the buffer through unchanged (noise — must NOT be
+  pitch-interpolated, or it sounds artificial).
+- the result is appended to the output buffer (coroutine yields blocks).
+
+KEY: only VOICED periods are resampled to the target pitch; unvoiced (consonants/
+noise) are passed through as-is. My PSOLA failure resampled EVERYTHING with a Hann
+window → monotone 'voice-changer'. The original uses simple per-period linear
+interpolation, voiced-only, at a pitch that tracks prevPitch*ratio (not a fixed
+constant). This is the precise DSP to port.
