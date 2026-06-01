@@ -16,3 +16,9 @@ const unsigned char TR_CASEFOLD[][2] = {
     {0xc0,0xe0}, {0xc8,0xe8}, {0xc6,0xe6}, {0xcb,0xeb}, {0xc1,0xe1},
     {0xd0,0xf0}, {0xd8,0xf8}, {0xdb,0xfb}, {0xde,0xfe}, {0,0}
 };
+
+/* Syllabification (skiem) character sets, from libtranscr .rodata.
+ * Sonorants can begin a following syllable; obstruents force a syllable break. */
+const unsigned char TR_SONORANTS[]    = { 'J','L','M','N','R','V', 0 };       /* JLMNRV */
+const unsigned char TR_SYLL_VOWELS[]  = { 'A',0xc0,'E',0xc6,0xcb,'I','Y',0xc1,'O','U',0xdb,0xd8, 0 }; /* AĄEĘĖIYĮOUŪŲ */
+const unsigned char TR_SYLL_OBSTR[]   = { 'B','D','G','K','P','T','C',0xc8,'F','H', 0 };  /* BDGKPTCČFH */
