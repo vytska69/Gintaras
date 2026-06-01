@@ -210,3 +210,21 @@ v1, wire the engine into the arm64 app so it WORKS on-device (the primary goal �
 modern Android, arm64, no native libs), and refine voice quality iteratively from
 there. The transcription (100%) and data layers are solid; synthesis is functional
 if rough.
+
+## Progress running the ORIGINAL speak() offline (feeding our deterministic data)
+Breakthrough on the blocker: loadvoice's 2nd arg is a MODE (number 0..8), not a
+name. Feeding our deterministic voice table (VOICES={Gintaras={[diphone]=records,
+P0..P8={bytes}, [idx]=sampleblock}}) and stubbing database.loaddatabase to return
+it, loadvoice now builds the prosody tables P0..P8 correctly (verified: P0=
+{10,10,0,1,220,62} etc.) and reaches loaddictionary/loadphrase.
+
+It still throws 'compare number with nil' (debug hook: ~line 29 of an inner proto)
+even for mode 2 (loaddictionary only) — so the fault is in loaddictionary or the
+g=P0[5] tail, not loadphrase. loaddictionary likely expects a DICT/dictionary
+structure (stdlit.dct etc.) we haven't provided.
+
+This is the closest we've been to running the ORIGINAL synthesis offline with
+correct data. Next: provide the dictionary inputs loaddictionary needs (or stub
+DICT as an empty table with __index returning ""), then call speak() and CAPTURE
+its PCM — the true reference to match our Java synth against.
+run_original_speak.lua holds the harness.
