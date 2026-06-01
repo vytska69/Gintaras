@@ -78,6 +78,41 @@ public final class DiphoneSynth {
             || c==(char)0xe1 || c==(char)0xeb || c==(char)0xf3;
     }
 
+    /**
+     * proto7 DSP, simplified: steady the pitch of voiced periods by linearly
+     * interpolating each voiced period to the unit's mean voiced-period length;
+     * leave unvoiced (consonant/noise) periods exactly as recorded. Returns plain
+     * waveforms ready for concatenation.
+     */
+    private static List<short[]> smoothVoiced(List<VoiceDatabase.Period> ps) {
+        List<short[]> out = new ArrayList<>(ps.size());
+        // mean length of voiced periods in this unit
+        long sum = 0; int nv = 0;
+        for (VoiceDatabase.Period p : ps) if (p.voiced) { sum += p.samples.length; nv++; }
+        int target = nv > 0 ? (int) (sum / nv) : 0;
+        for (VoiceDatabase.Period p : ps) {
+            if (p.voiced && target > 0 && p.samples.length != target) {
+                out.add(lerpResample(p.samples, target));
+            } else {
+                out.add(p.samples);
+            }
+        }
+        return out;
+    }
+
+    /** Linear-interpolate a period to `len` samples (proto7's voiced resample). */
+    private static short[] lerpResample(short[] src, int len) {
+        short[] dst = new short[len];
+        if (src.length == 0) return dst;
+        for (int i = 0; i < len; i++) {
+            float pos = (float) i * (src.length - 1) / (len - 1 > 0 ? len - 1 : 1);
+            int i0 = (int) pos, i1 = Math.min(i0 + 1, src.length - 1);
+            float f = pos - i0;
+            dst[i] = (short) (src[i0] * (1 - f) + src[i1] * f);
+        }
+        return dst;
+    }
+
     /** Look up a unit by name, trying the exact key then simpler fallbacks. */
     private VoiceDatabase.Entry lookup(String key) {
         VoiceDatabase.Entry e = index.get(key);
@@ -100,11 +135,17 @@ public final class DiphoneSynth {
         String s = seq.toString();
 
         // Resolve each adjacent-pair "-XY" unit to its list of pitch periods.
+        // Smooth ONLY voiced periods toward a steady pitch (proto7 DSP: voiced
+        // periods are pitch-interpolated, unvoiced consonants are left untouched).
+        // We interpolate each voiced period to the unit's MEAN voiced-period length
+        // — this steadies the pitch within a vowel (removing the per-period jitter
+        // that sounded rough) without the global monotone that the constant-220
+        // resample caused.
         List<List<short[]>> units = new ArrayList<>();
         for (int i = 0; i + 1 < s.length(); i++) {
             VoiceDatabase.Entry e = lookup("-" + s.substring(i, i + 2));
             if (e == null) e = lookupFlexible(s.charAt(i), s.charAt(i + 1));
-            units.add(e != null ? db.unitPeriods(e) : null);
+            units.add(e != null ? smoothVoiced(db.unitTypedPeriods(e)) : null);
         }
 
         // Build per-unit waveforms by concatenating that unit's periods DIRECTLY

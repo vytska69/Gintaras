@@ -170,6 +170,36 @@ public final class VoiceDatabase {
         return out;
     }
 
+    /** One pitch period plus its type bit (bit0 = voiced). */
+    public static final class Period {
+        public final short[] samples;
+        public final boolean voiced;
+        Period(short[] samples, boolean voiced) { this.samples = samples; this.voiced = voiced; }
+    }
+
+    /** A unit's periods carrying the voiced flag (typ&1), resolving aliases.
+     *  The original DSP (proto7) pitch-interpolates voiced periods only and
+     *  passes unvoiced (consonant/noise) periods through unchanged. */
+    public List<Period> unitTypedPeriods(Entry e) {
+        return unitTypedPeriods(e, 0);
+    }
+
+    private List<Period> unitTypedPeriods(Entry e, int depth) {
+        List<Period> out = new ArrayList<>();
+        if (e == null || depth > 4) return out;
+        if (e.records.size() == 1 && !e.records.get(0).isNumeric()) {
+            Entry t = diphoneIndex().get(unitName(e.records.get(0).stringKey));
+            if (t != null && t != e) return unitTypedPeriods(t, depth + 1);
+            return out;
+        }
+        for (Record r : e.records)
+            if (r.isNumeric()) {
+                SampleBlock b = blocks.get(r.numKey);
+                if (b != null) out.add(new Period(b.samples, (r.typ & 1) != 0));
+            }
+        return out;
+    }
+
     private short[] unitWaveform(Entry e, int depth) {
         if (e == null || depth > 4) return new short[0];
         // alias: a single string-key record points at another unit by name
