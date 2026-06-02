@@ -1,0 +1,981 @@
+== Faithful decompilation of module 'translate' (LuaJIT 2.1 bytecode) ==
+Format: per proto, semantic register-machine transliteration. UV bindings
+are resolved structurally from the .bc upvalue tables (parent local/upvalue
+slot). Proto ids: root = module body; root.N = child via FNEW K[-N].
+
+========================= PROTO root (parent: -) =========================
+-- params=0 framesize=23 upvalues=0 nconsts(gc=nil num=0)
+  K[-1]="require"
+  K[-2]="lpeg"
+  K[-3]="P"
+  K[-4]="C"
+  K[-5]="S"
+  K[-6]="R"
+  K[-7]="B"
+  K[-8]="V"
+  K[-9]="Cc"
+  K[-10]="Ct"
+  K[-11]="Cg"
+  K[-12]="Cs"
+  K[-13]="Cp"
+  K[-14]="Cmt"
+  K[-15]="\\000"
+  K[-16]="09"
+  K[-17]=" "
+  K[-18]="^"
+  K[-19]="$"
+  K[-20]="-"
+  K[-21]="translate"
+  K[-22]=proto@"translate":0
+  K[-23]="numbers"
+  K[-24]=proto@"translate":0
+-- code:
+0001  R0 = _G["require"]
+0002  R1 = "lpeg"
+0003  R0 = R0(R1)
+0004  R1 = R0["P"]
+0005  R2 = R0["C"]
+0006  R3 = R0["S"]
+0007  R4 = R0["R"]
+0008  R5 = R0["B"]
+0009  R6 = R0["V"]
+0010  R7 = R0["Cc"]
+0011  R8 = R0["Ct"]
+0012  R9 = R0["Cg"]
+0013  R10 = R0["Cs"]
+0014  R11 = R0["Cp"]
+0015  R12 = R0["Cmt"]
+0016  R13 = R1
+0017  R14 = 2
+0018  R13 = R13(R14)
+0019  R14 = R1
+0020  R15 = "\000"
+0021  R14 = R14(R15)
+0022  R15 = R0["R"]
+0023  R16 = "09"
+0024  R15 = R15(R16)
+0025  R15 = R15 * R14
+0026  R16 = 1
+0027  R15 = R15 ^ R16
+0028  R16 = R1
+0029  R17 = " "
+0030  R16 = R16(R17)
+0031  R16 = R16 * R14
+0032  R17 = "\000"
+0033  R18 = "^"
+0034  R19 = R17
+0035  R18 = concat(R18..R19)
+0036  R19 = "$"
+0037  R20 = R17
+0038  R19 = concat(R19..R20)
+0039  R20 = "-"
+0040  R21 = R17
+0041  R20 = concat(R20..R21)
+0042  R21 = {} (new, hint=0)
+0043  R22 = closure(proto@"translate":0)
+0044  R21["translate"] = R22
+0045  R22 = closure(proto@"translate":0)
+0046  R21["numbers"] = R22
+0047  close upvals >= R0; goto 0048
+0048  return R21
+
+
+========================= PROTO root.22 (parent: root) =========================
+-- params=3 framesize=41 upvalues=11 nconsts(gc=nil num=1)
+  K[-1]=""
+  K[-2]=proto@"translate":0
+  K[-3]=proto@"translate":0
+  K[-4]=proto@"translate":0
+  K[-5]=proto@"translate":0
+  K[-6]=proto@"translate":0
+  K[-7]="match"
+  K[-8]="ipairs"
+  KNUM[0]=1
+  UV0 -> rootlocal[20] immut
+  UV1 -> rootlocal[12] immut
+  UV2 -> rootlocal[2] immut
+  UV3 -> rootlocal[13] immut
+  UV4 -> rootlocal[5] immut
+  UV5 -> rootlocal[7] immut
+  UV6 -> rootlocal[18] immut
+  UV7 -> rootlocal[1] immut
+  UV8 -> rootlocal[19] immut
+  UV9 -> rootlocal[8] immut
+  UV10 -> rootlocal[10] immut
+-- code:
+0001  R3 = R1; if R1 then -> (next JMP)
+0002  goto 0004
+0003  R3 = ""
+0004  R4 = closure(proto@"translate":0)
+0005  R5 = closure(proto@"translate":0)
+0006  R6 = closure(proto@"translate":0)
+0007  R7 = closure(proto@"translate":0)
+0008  R8 = closure(proto@"translate":0)
+0009  R9 = UV1
+0010  R10 = UV2
+0011  R11 = UV3
+0012  R10 = R10(R11)
+0013  R11 = UV3
+0014  R11 = #R11
+0015  R10 = R10 * R11
+0016  R11 = R4
+0017  R9 = R9(R10,R11)
+0018  R10 = UV1
+0019  R11 = UV2
+0020  R12 = UV3
+0021  R11 = R11(R12)
+0022  R12 = UV3
+0023  R13 = UV3
+0024  R12 = R12 * R13
+0025  R12 = #R12
+0026  R11 = R11 * R12
+0027  R12 = R5
+0028  R10 = R10(R11,R12)
+0029  R11 = UV1
+0030  R12 = UV2
+0031  R13 = UV3
+0032  R12 = R12(R13)
+0033  R13 = UV4
+0034  R14 = UV3
+0035  R13 = R13(R14)
+0036  R12 = R12 - R13
+0037  R13 = UV3
+0038  R13 = #R13
+0039  R12 = R12 * R13
+0040  R13 = UV5
+0041  R14 = UV6
+0042  R13 = R13(R14)
+0043  R12 = R12 * R13
+0044  R13 = R4
+0045  R11 = R11(R12,R13)
+0046  R12 = UV1
+0047  R13 = UV4
+0048  R14 = UV3
+0049  R13 = R13(R14)
+0050  R14 = UV2
+0051  R15 = UV3
+0052  R14 = R14(R15)
+0053  R13 = R13 * R14
+0054  R14 = R6
+0055  R12 = R12(R13,R14)
+0056  R13 = UV1
+0057  R14 = UV4
+0058  R15 = UV3
+0059  R16 = UV3
+0060  R15 = R15 * R16
+0061  R14 = R14(R15)
+0062  R15 = UV2
+0063  R16 = UV3
+0064  R15 = R15(R16)
+0065  R14 = R14 * R15
+0066  R15 = R7
+0067  R13 = R13(R14,R15)
+0068  R14 = UV1
+0069  R15 = UV4
+0070  R16 = UV3
+0071  R15 = R15(R16)
+0072  R16 = UV2
+0073  R17 = UV3
+0074  R16 = R16(R17)
+0075  R15 = R15 * R16
+0076  R16 = UV7
+0077  R17 = UV3
+0078  R17 = -R17
+0079  R16 = R16(R17)
+0080  R15 = R15 * R16
+0081  R16 = UV5
+0082  R17 = UV8
+0083  R16 = R16(R17)
+0084  R15 = R15 * R16
+0085  R16 = R6
+0086  R14 = R14(R15,R16)
+0087  R15 = UV1
+0088  R16 = UV2
+0089  R17 = UV3
+0090  R16 = R16(R17)
+0091  R17 = R8
+0092  R15 = R15(R16,R17)
+0093  R16 = UV1
+0094  R17 = UV2
+0095  R18 = UV3
+0096  R19 = UV3
+0097  R18 = R18 * R19
+0098  R17 = R17(R18)
+0099  R18 = R8
+0100  R16 = R16(R17,R18)
+0101  R17 = UV1
+0102  R18 = UV2
+0103  R19 = UV3
+0104  R20 = UV3
+0105  R19 = R19 * R20
+0106  R20 = UV3
+0107  R19 = R19 * R20
+0108  R18 = R18(R19)
+0109  R19 = R8
+0110  R17 = R17(R18,R19)
+0111  R18 = UV1
+0112  R19 = UV2
+0113  R20 = UV3
+0114  R21 = UV3
+0115  R20 = R20 * R21
+0116  R21 = UV3
+0117  R20 = R20 * R21
+0118  R21 = UV3
+0119  R20 = R20 * R21
+0120  R19 = R19(R20)
+0121  R20 = R8
+0122  R18 = R18(R19,R20)
+0123  R19 = UV1
+0124  R20 = UV2
+0125  R21 = UV3
+0126  R22 = UV3
+0127  R21 = R21 * R22
+0128  R22 = UV3
+0129  R21 = R21 * R22
+0130  R22 = UV3
+0131  R21 = R21 * R22
+0132  R22 = UV3
+0133  R21 = R21 * R22
+0134  R20 = R20(R21)
+0135  R21 = R8
+0136  R19 = R19(R20,R21)
+0137  R20 = UV1
+0138  R21 = UV2
+0139  R22 = UV3
+0140  R23 = UV3
+0141  R22 = R22 * R23
+0142  R23 = UV3
+0143  R22 = R22 * R23
+0144  R23 = UV3
+0145  R22 = R22 * R23
+0146  R23 = UV3
+0147  R22 = R22 * R23
+0148  R23 = UV3
+0149  R22 = R22 * R23
+0150  R21 = R21(R22)
+0151  R22 = R8
+0152  R20 = R20(R21,R22)
+0153  R21 = UV1
+0154  R22 = UV2
+0155  R23 = UV3
+0156  R24 = UV3
+0157  R23 = R23 * R24
+0158  R24 = UV3
+0159  R23 = R23 * R24
+0160  R24 = UV3
+0161  R23 = R23 * R24
+0162  R24 = UV3
+0163  R23 = R23 * R24
+0164  R24 = UV3
+0165  R23 = R23 * R24
+0166  R24 = UV3
+0167  R23 = R23 * R24
+0168  R22 = R22(R23)
+0169  R23 = R8
+0170  R21 = R21(R22,R23)
+0171  R22 = UV1
+0172  R23 = UV2
+0173  R24 = UV3
+0174  R25 = UV3
+0175  R24 = R24 * R25
+0176  R25 = UV3
+0177  R24 = R24 * R25
+0178  R25 = UV3
+0179  R24 = R24 * R25
+0180  R25 = UV3
+0181  R24 = R24 * R25
+0182  R25 = UV3
+0183  R24 = R24 * R25
+0184  R25 = UV3
+0185  R24 = R24 * R25
+0186  R25 = UV3
+0187  R24 = R24 * R25
+0188  R23 = R23(R24)
+0189  R24 = R8
+0190  R22 = R22(R23,R24)
+0191  R23 = UV1
+0192  R24 = UV2
+0193  R25 = UV3
+0194  R26 = UV3
+0195  R25 = R25 * R26
+0196  R26 = UV3
+0197  R25 = R25 * R26
+0198  R26 = UV3
+0199  R25 = R25 * R26
+0200  R26 = UV3
+0201  R25 = R25 * R26
+0202  R26 = UV3
+0203  R25 = R25 * R26
+0204  R26 = UV3
+0205  R25 = R25 * R26
+0206  R26 = UV3
+0207  R25 = R25 * R26
+0208  R26 = UV3
+0209  R25 = R25 * R26
+0210  R24 = R24(R25)
+0211  R25 = R8
+0212  R23 = R23(R24,R25)
+0213  R24 = UV1
+0214  R25 = UV2
+0215  R26 = UV3
+0216  R25 = R25(R26)
+0217  R26 = UV4
+0218  R27 = UV3
+0219  R26 = R26(R27)
+0220  R25 = R25 - R26
+0221  R26 = UV5
+0222  R27 = UV6
+0223  R26 = R26(R27)
+0224  R25 = R25 * R26
+0225  R26 = R8
+0226  R24 = R24(R25,R26)
+0227  R25 = UV1
+0228  R26 = UV2
+0229  R27 = UV3
+0230  R26 = R26(R27)
+0231  R27 = UV7
+0232  R28 = UV3
+0233  R28 = -R28
+0234  R27 = R27(R28)
+0235  R26 = R26 * R27
+0236  R27 = UV5
+0237  R28 = ""
+0238  R27 = R27(R28)
+0239  R26 = R26 * R27
+0240  R27 = UV5
+0241  R28 = UV8
+0242  R27 = R27(R28)
+0243  R26 = R26 * R27
+0244  R27 = R8
+0245  R25 = R25(R26,R27)
+0246  R26 = UV1
+0247  R27 = UV2
+0248  R28 = UV3
+0249  R27 = R27(R28)
+0250  R28 = UV4
+0251  R29 = UV3
+0252  R28 = R28(R29)
+0253  R27 = R27 - R28
+0254  R28 = UV7
+0255  R29 = UV3
+0256  R29 = -R29
+0257  R28 = R28(R29)
+0258  R27 = R27 * R28
+0259  R28 = UV5
+0260  R29 = UV6
+0261  R28 = R28(R29)
+0262  R27 = R27 * R28
+0263  R28 = UV5
+0264  R29 = UV8
+0265  R28 = R28(R29)
+0266  R27 = R27 * R28
+0267  R28 = R8
+0268  R26 = R26(R27,R28)
+0269  R27 = UV1
+0270  R28 = UV2
+0271  R29 = UV3
+0272  R30 = UV3
+0273  R29 = R29 * R30
+0274  R28 = R28(R29)
+0275  R29 = R8
+0276  R27 = R27(R28,R29)
+0277  R28 = UV1
+0278  R29 = UV2
+0279  R30 = UV3
+0280  R31 = UV3
+0281  R30 = R30 * R31
+0282  R29 = R29(R30)
+0283  R30 = UV4
+0284  R31 = UV3
+0285  R30 = R30(R31)
+0286  R29 = R29 - R30
+0287  R30 = UV5
+0288  R31 = UV6
+0289  R30 = R30(R31)
+0290  R29 = R29 * R30
+0291  R30 = R8
+0292  R28 = R28(R29,R30)
+0293  R29 = UV1
+0294  R30 = UV2
+0295  R31 = UV3
+0296  R32 = UV3
+0297  R31 = R31 * R32
+0298  R30 = R30(R31)
+0299  R31 = UV7
+0300  R32 = UV3
+0301  R32 = -R32
+0302  R31 = R31(R32)
+0303  R30 = R30 * R31
+0304  R31 = UV5
+0305  R32 = ""
+0306  R31 = R31(R32)
+0307  R30 = R30 * R31
+0308  R31 = UV5
+0309  R32 = UV8
+0310  R31 = R31(R32)
+0311  R30 = R30 * R31
+0312  R31 = R8
+0313  R29 = R29(R30,R31)
+0314  R30 = UV1
+0315  R31 = UV2
+0316  R32 = UV3
+0317  R33 = UV3
+0318  R32 = R32 * R33
+0319  R31 = R31(R32)
+0320  R32 = UV4
+0321  R33 = UV3
+0322  R32 = R32(R33)
+0323  R31 = R31 - R32
+0324  R32 = UV7
+0325  R33 = UV3
+0326  R33 = -R33
+0327  R32 = R32(R33)
+0328  R31 = R31 * R32
+0329  R32 = UV5
+0330  R33 = UV6
+0331  R32 = R32(R33)
+0332  R31 = R31 * R32
+0333  R32 = UV5
+0334  R33 = UV8
+0335  R32 = R32(R33)
+0336  R31 = R31 * R32
+0337  R32 = R8
+0338  R30 = R30(R31,R32)
+0339  R31 = R30 + R28
+0340  R31 = R31 + R29
+0341  R31 = R31 + R27
+0342  R31 = R31 + R26
+0343  R31 = R31 + R11
+0344  R31 = R31 + R10
+0345  R31 = R31 + R9
+0346  R31 = R31 + R24
+0347  R31 = R31 + R14
+0348  R31 = R31 + R25
+0349  R31 = R31 + R13
+0350  R31 = R31 + R12
+0351  R31 = R31 + R23
+0352  R31 = R31 + R22
+0353  R31 = R31 + R21
+0354  R31 = R31 + R20
+0355  R31 = R31 + R19
+0356  R31 = R31 + R18
+0357  R31 = R31 + R17
+0358  R31 = R31 + R16
+0359  R31 = R31 + R15
+0360  R32 = UV9
+0361  R33 = UV3
+0362  R33 = R31 + R33
+0363  R34 = 0
+0364  R33 = R33 ^ R34
+0365  R32 = R32(R33)
+0366  R33 = UV10
+0367  R34 = UV3
+0368  R34 = R31 + R34
+0369  R35 = 0
+0370  R34 = R34 ^ R35
+0371  R33 = R33(R34)
+0372  if not R1 then -> (next JMP)
+0373  goto 0381
+0374  R35 = R33
+0375  R34 = R33["match"]
+0376  R36 = R0
+0377  R34 = R34(R35,R36)
+0378  close upvals >= R0; goto 0379
+0379  return R34
+0380  goto 0396
+0381  R34 = {} (new, hint=0)
+0382  R35 = _G["ipairs"]
+0383  R37 = R32
+0384  R36 = R32["match"]
+0385  R38 = R0
+0386  R36.. = R36(R37,R38) (multi)
+0387  R35.. = R35(, ...multi)
+0388  goto 0392
+0389  R40 = #R34
+0390  R40 = R40 + 1
+0391  R34[R40] = R39
+0392  R38,.. = (for-iter) R35(R36,R37)  [nres=2]
+0393  iter-loop -> 0389
+0394  close upvals >= R0; goto 0395
+0395  return R34
+0396  close upvals >= R0; goto 0397
+0397  return
+
+
+========================= PROTO root.22.2 (parent: root.22) =========================
+-- params=4 framesize=10 upvalues=4 nconsts(gc=nil num=1)
+  K[-1]=""
+  K[-2]="sub"
+  KNUM[0]=1
+  UV0 -> root.22upvalue[0]
+  UV1 -> root.22local[2] immut
+  UV2 -> root.22local[3] immut
+  UV3 -> root.22local[1] immut
+-- code:
+0001  R4 = R3; if R3 then -> (next JMP)
+0002  goto 0004
+0003  R4 = ""
+0004  R5 = R2
+0005  R7 = R0
+0006  R6 = R0["sub"]
+0007  R8 = R1
+0008  R9 = R1 + 1
+0009  R6 = R6(R7,R8,R9)
+0010  R7 = UV0
+0011  R4 = concat(R4..R7)
+0012  R5 = UV1
+0013  R6 = UV2
+0014  R7 = R4
+0015  R6 = concat(R6..R7)
+0016  R5 = R5[R6]
+0017  R6 = R5; if not R5 then -> (next JMP)
+0018  goto 0020
+0019  R6 = R5[1]
+0020  if R5 ~= nil then -> (next JMP)
+0021  goto 0024
+0022  R7 = false
+0023  goto 0025
+0024  R7 = true
+0025  R8 = UV3
+0026  if not R8 then -> (next JMP)
+0027  goto 0030
+0028  R8 = R6; if R6 then -> (next JMP)
+0029  goto 0031
+0030  R8 = R4
+0031  return R7
+
+
+========================= PROTO root.22.3 (parent: root.22) =========================
+-- params=4 framesize=10 upvalues=4 nconsts(gc=nil num=2)
+  K[-1]=""
+  K[-2]="sub"
+  KNUM[0]=1
+  KNUM[1]=2
+  UV0 -> root.22upvalue[0]
+  UV1 -> root.22local[2] immut
+  UV2 -> root.22local[3] immut
+  UV3 -> root.22local[1] immut
+-- code:
+0001  R4 = R3; if R3 then -> (next JMP)
+0002  goto 0004
+0003  R4 = ""
+0004  R5 = R2
+0005  R7 = R0
+0006  R6 = R0["sub"]
+0007  R8 = R1
+0008  R9 = R1 + 1
+0009  R9 = R9 + 2
+0010  R6 = R6(R7,R8,R9)
+0011  R7 = UV0
+0012  R8 = UV0
+0013  R4 = concat(R4..R8)
+0014  R5 = UV1
+0015  R6 = UV2
+0016  R7 = R4
+0017  R6 = concat(R6..R7)
+0018  R5 = R5[R6]
+0019  R6 = R5; if not R5 then -> (next JMP)
+0020  goto 0022
+0021  R6 = R5[1]
+0022  if R5 ~= nil then -> (next JMP)
+0023  goto 0026
+0024  R7 = false
+0025  goto 0027
+0026  R7 = true
+0027  R8 = UV3
+0028  if not R8 then -> (next JMP)
+0029  goto 0032
+0030  R8 = R6; if R6 then -> (next JMP)
+0031  goto 0033
+0032  R8 = R4
+0033  return R7
+
+
+========================= PROTO root.22.4 (parent: root.22) =========================
+-- params=4 framesize=9 upvalues=4 nconsts(gc=nil num=2)
+  K[-1]="sub"
+  K[-2]=""
+  KNUM[0]=4
+  KNUM[1]=3
+  UV0 -> root.22upvalue[0]
+  UV1 -> root.22local[2] immut
+  UV2 -> root.22local[3] immut
+  UV3 -> root.22local[1] immut
+-- code:
+0001  R4 = UV0
+0002  R6 = R0
+0003  R5 = R0["sub"]
+0004  R7 = R1 - 4
+0005  R8 = R1 - 3
+0006  R5 = R5(R6,R7,R8)
+0007  R6 = R2
+0008  R7 = R3; if R3 then -> (next JMP)
+0009  goto 0011
+0010  R7 = ""
+0011  R4 = concat(R4..R7)
+0012  R5 = UV1
+0013  R6 = UV2
+0014  R7 = R4
+0015  R6 = concat(R6..R7)
+0016  R5 = R5[R6]
+0017  R6 = R5; if not R5 then -> (next JMP)
+0018  goto 0020
+0019  R6 = R5[1]
+0020  if R5 ~= nil then -> (next JMP)
+0021  goto 0024
+0022  R7 = false
+0023  goto 0025
+0024  R7 = true
+0025  R8 = UV3
+0026  if not R8 then -> (next JMP)
+0027  goto 0030
+0028  R8 = R6; if R6 then -> (next JMP)
+0029  goto 0031
+0030  R8 = R4
+0031  return R7
+
+
+========================= PROTO root.22.5 (parent: root.22) =========================
+-- params=4 framesize=11 upvalues=4 nconsts(gc=nil num=4)
+  K[-1]="sub"
+  K[-2]=""
+  K[-3]="|\\000"
+  KNUM[0]=6
+  KNUM[1]=3
+  KNUM[2]=4
+  KNUM[3]=5
+  UV0 -> root.22upvalue[0]
+  UV1 -> root.22local[2] immut
+  UV2 -> root.22local[3] immut
+  UV3 -> root.22local[1] immut
+-- code:
+0001  R4 = UV0
+0002  R5 = UV0
+0003  R7 = R0
+0004  R6 = R0["sub"]
+0005  R8 = R1 - 6
+0006  R9 = R1 - 3
+0007  R6 = R6(R7,R8,R9)
+0008  R7 = R2
+0009  R8 = R3; if R3 then -> (next JMP)
+0010  goto 0012
+0011  R8 = ""
+0012  R4 = concat(R4..R8)
+0013  R5 = UV1
+0014  R6 = UV2
+0015  R7 = R4
+0016  R6 = concat(R6..R7)
+0017  R5 = R5[R6]
+0018  if R5 then -> (next JMP)
+0019  goto 0043
+0020  R7 = R0
+0021  R6 = R0["sub"]
+0022  R8 = R1 - 4
+0023  R9 = R1 - 3
+0024  R6 = R6(R7,R8,R9)
+0025  if R6 ~= "|\000" then -> (next JMP)
+0026  goto 0043
+0027  R6 = UV0
+0028  R8 = R0
+0029  R7 = R0["sub"]
+0030  R9 = R1 - 6
+0031  R10 = R1 - 5
+0032  R7 = R7(R8,R9,R10)
+0033  R8 = R2
+0034  R9 = R3; if R3 then -> (next JMP)
+0035  goto 0037
+0036  R9 = ""
+0037  R4 = concat(R6..R9)
+0038  R6 = UV1
+0039  R7 = UV2
+0040  R8 = R4
+0041  R7 = concat(R7..R8)
+0042  R5 = R6[R7]
+0043  R6 = R5; if not R5 then -> (next JMP)
+0044  goto 0046
+0045  R6 = R5[1]
+0046  if R5 ~= nil then -> (next JMP)
+0047  goto 0050
+0048  R7 = false
+0049  goto 0051
+0050  R7 = true
+0051  R8 = UV3
+0052  if not R8 then -> (next JMP)
+0053  goto 0056
+0054  R8 = R6; if R6 then -> (next JMP)
+0055  goto 0057
+0056  R8 = R4
+0057  return R7
+
+
+========================= PROTO root.22.6 (parent: root.22) =========================
+-- params=5 framesize=10 upvalues=3 nconsts(gc=nil num=0)
+  K[-1]=""
+  UV0 -> root.22local[2] immut
+  UV1 -> root.22local[3] immut
+  UV2 -> root.22local[1] immut
+-- code:
+0001  R5 = R3; if R3 then -> (next JMP)
+0002  goto 0004
+0003  R5 = ""
+0004  R6 = R2
+0005  R7 = R4; if R4 then -> (next JMP)
+0006  goto 0008
+0007  R7 = ""
+0008  R5 = concat(R5..R7)
+0009  R6 = UV0
+0010  R7 = UV1
+0011  R8 = R5
+0012  R7 = concat(R7..R8)
+0013  R6 = R6[R7]
+0014  R7 = R6; if not R6 then -> (next JMP)
+0015  goto 0017
+0016  R7 = R6[1]
+0017  if R6 ~= nil then -> (next JMP)
+0018  goto 0021
+0019  R8 = false
+0020  goto 0022
+0021  R8 = true
+0022  R9 = UV2
+0023  if not R9 then -> (next JMP)
+0024  goto 0027
+0025  R9 = R7; if R7 then -> (next JMP)
+0026  goto 0028
+0027  R9 = R5
+0028  return R8
+
+
+========================= PROTO root.24 (parent: root) =========================
+-- params=1 framesize=6 upvalues=6 nconsts(gc=nil num=0)
+  K[-1]=proto@"translate":0
+  K[-2]=proto@"translate":0
+  UV0 -> rootlocal[17] immut
+  UV1 -> rootlocal[2] immut
+  UV2 -> rootlocal[13] immut
+  UV3 -> rootlocal[15] immut
+  UV4 -> rootlocal[16] immut
+  UV5 -> rootlocal[8] immut
+-- code:
+0001  R1 = closure(proto@"translate":0)
+0002  R2 = UV1
+0003  R3 = UV2
+0004  R4 = UV3
+0005  R5 = UV4
+0006  R4 = R4 + R5
+0007  R3 = R3 - R4
+0008  R4 = 1
+0009  R3 = R3 ^ R4
+0010  R2 = R2(R3)
+0011  R3 = UV5
+0012  R4 = UV3
+0013  R4 = R4 / R1
+0014  R4 = R4 + R2
+0015  R5 = UV4
+0016  R4 = R4 + R5
+0017  R5 = 0
+0018  R4 = R4 ^ R5
+0019  R3 = R3(R4)
+0020  R4 = closure(proto@"translate":0)
+0021  close upvals >= R0; goto 0022
+0022  return R4
+
+
+========================= PROTO root.24.1 (parent: root.24) =========================
+-- params=1 framesize=19 upvalues=2 nconsts(gc=nil num=3)
+  K[-1]="N\\000+\\000"
+  K[-2]="sub"
+  K[-3]="+\\000"
+  K[-4]="R\\000"
+  K[-5]="N\\000"
+  K[-6]="type"
+  K[-7]="table"
+  K[-8]="unpack"
+  KNUM[0]=2
+  KNUM[1]=1
+  KNUM[2]=0
+  UV0 -> root.24upvalue[0]
+  UV1 -> root.24local[0] immut
+-- code:
+0001  R1 = #R0
+0002  R1 = R1 / 2
+0003  R2 = 1
+0004  R3 = R1
+0005  R4 = {} (new, hint=0)
+0006  if R2 > R3 then -> (next JMP)
+0007  goto 0122
+0008  loop-hint -> 0122
+0009  R5 = R1 - R3
+0010  R6..R10 = nil
+0011  R11 = R2 - 1
+0012  R11 = R11 * 2
+0013  R11 = R11 + 1
+0014  R12 = R3 - 1
+0015  R12 = R12 * 2
+0016  R12 = R12 + 2
+0017  R13 = R5 + 1
+0018  if R13 >= R1 then -> (next JMP)
+0019  goto 0041
+0020  R13 = "N\000+\000"
+0021  R15 = R0
+0022  R14 = R0["sub"]
+0023  R16 = R11
+0024  R17 = R12
+0025  R14 = R14(R15,R16,R17)
+0026  R15 = "+\000"
+0027  R16 = R5
+0028  R17 = UV0
+0029  R18 = "R\000"
+0030  R6 = concat(R13..R18)
+0031  R13 = "N\000+\000"
+0032  R15 = R0
+0033  R14 = R0["sub"]
+0034  R16 = R11
+0035  R17 = R12
+0036  R14 = R14(R15,R16,R17)
+0037  R15 = "+\000"
+0038  R16 = R5
+0039  R17 = UV0
+0040  R7 = concat(R13..R17)
+0041  R13 = "N\000"
+0042  R15 = R0
+0043  R14 = R0["sub"]
+0044  R16 = R11
+0045  R17 = R12
+0046  R14 = R14(R15,R16,R17)
+0047  R15 = "+\000"
+0048  R16 = R5
+0049  R17 = UV0
+0050  R18 = "R\000"
+0051  R8 = concat(R13..R18)
+0052  R13 = "N\000"
+0053  R15 = R0
+0054  R14 = R0["sub"]
+0055  R16 = R11
+0056  R17 = R12
+0057  R14 = R14(R15,R16,R17)
+0058  R15 = "+\000"
+0059  R16 = R5
+0060  R17 = UV0
+0061  R9 = concat(R13..R17)
+0062  if not R6 then -> (next JMP)
+0063  goto 0068
+0064  R13 = UV1
+0065  R13 = R13[R6]
+0066  if R13 then -> (next JMP)
+0067  goto 0090
+0068  if not R7 then -> (next JMP)
+0069  goto 0074
+0070  R13 = UV1
+0071  R13 = R13[R7]
+0072  if R13 then -> (next JMP)
+0073  goto 0090
+0074  if not R8 then -> (next JMP)
+0075  goto 0080
+0076  R13 = UV1
+0077  R13 = R13[R8]
+0078  if R13 then -> (next JMP)
+0079  goto 0090
+0080  if not R9 then -> (next JMP)
+0081  goto 0086
+0082  R13 = UV1
+0083  R13 = R13[R9]
+0084  if R13 then -> (next JMP)
+0085  goto 0090
+0086  R13 = R10; if not R10 then -> (next JMP)
+0087  goto 0090
+0088  R13 = UV1
+0089  R13 = R13[R10]
+0090  if not R13 then -> (next JMP)
+0091  goto 0113
+0092  R4[R2] = R13
+0093  if R6 then -> (next JMP)
+0094  goto 0097
+0095  if not R8 then -> (next JMP)
+0096  goto 0107
+0097  R14 = R2 + 1
+0098  R15 = R1
+0099  R16 = 1
+0100  for R14=R14(start),R15(stop),R16(step); idx R17; if out-of-range goto 0107
+0101  R18 = R4[R17]
+0102  if R18 then -> (next JMP)
+0103  goto 0105
+0104  R18 = true
+0105  R4[R17] = R18
+0106  R17 += R16(step); if in-range goto 0101
+0107  R3 = R2 - 1
+0108  if R3 ~= 0 then -> (next JMP)
+0109  goto 0111
+0110  goto 0122
+0111  R2 = 1
+0112  goto 0006
+0113  R2 = R2 + 1
+0114  if R3 >= R2 then -> (next JMP)
+0115  goto 0006
+0116  R3 = R3 - 1
+0117  if R3 ~= 0 then -> (next JMP)
+0118  goto 0120
+0119  goto 0122
+0120  R2 = 1
+0121  goto 0006
+0122  R5 = 1
+0123  R6 = R1
+0124  R7 = 1
+0125  for R5=R5(start),R6(stop),R7(step); idx R8; if out-of-range goto 0146
+0126  R9 = R8 - 1
+0127  R9 = R9 * 2
+0128  R9 = R9 + 1
+0129  R10 = R4[R8]
+0130  if R10 then -> (next JMP)
+0131  goto 0143
+0132  R10 = UV1
+0133  R11 = "N\000"
+0134  R13 = R0
+0135  R12 = R0["sub"]
+0136  R14 = R9
+0137  R15 = R9 + 1
+0138  R12 = R12(R13,R14,R15)
+0139  R11 = concat(R11..R12)
+0140  R10 = R10[R11]
+0141  if R10 then -> (next JMP)
+0142  goto 0144
+0143  R10 = R4[R8]
+0144  R4[R8] = R10
+0145  R8 += R7(step); if in-range goto 0126
+0146  R5 = {} (new, hint=0)
+0147  R6 = 1
+0148  R7 = R1
+0149  R8 = 1
+0150  for R6=R6(start),R7(stop),R8(step); idx R9; if out-of-range goto 0168
+0151  R10 = _G["type"]
+0152  R11 = R4[R9]
+0153  R10 = R10(R11)
+0154  if R10 ~= "table" then -> (next JMP)
+0155  goto 0167
+0156  R10 = 1
+0157  R11 = R4[R9]
+0158  R11 = #R11
+0159  R12 = 1
+0160  for R10=R10(start),R11(stop),R12(step); idx R13; if out-of-range goto 0167
+0161  R14 = #R5
+0162  R14 = R14 + 1
+0163  R15 = R4[R9]
+0164  R15 = R15[R13]
+0165  R5[R14] = R15
+0166  R13 += R12(step); if in-range goto 0161
+0167  R9 += R8(step); if in-range goto 0151
+0168  R6 = _G["unpack"]
+0169  R7 = R5
+0170  return R6(R7..R7)  (tailcall)
+
+
+========================= PROTO root.24.2 (parent: root.24) =========================
+-- params=1 framesize=4 upvalues=1 nconsts(gc=nil num=0)
+  K[-1]="match"
+  UV0 -> root.24local[3] immut
+-- code:
+0001  R1 = UV0
+0002  R2 = R1
+0003  R1 = R1["match"]
+0004  R3 = R0
+0005  return R1(R2..R3)  (tailcall)
+

@@ -1,0 +1,1100 @@
+== Faithful decompilation of module 'dictionary' (LuaJIT 2.1 bytecode) ==
+Format: per proto, semantic register-machine transliteration. UV bindings
+are resolved structurally from the .bc upvalue tables (parent local/upvalue
+slot). Proto ids: root = module body; root.N = child via FNEW K[-N].
+
+========================= PROTO root (parent: -) =========================
+-- params=0 framesize=36 upvalues=0 nconsts(gc=nil num=0)
+  K[-1]="require"
+  K[-2]="lpeg"
+  K[-3]="DICT"
+  K[-4]="P"
+  K[-5]="C"
+  K[-6]="S"
+  K[-7]="R"
+  K[-8]="B"
+  K[-9]="V"
+  K[-10]="Cc"
+  K[-11]="Ct"
+  K[-12]="Cg"
+  K[-13]="Cs"
+  K[-14]="Cp"
+  K[-15]="Cmt"
+  K[-16]="\\000"
+  K[-17]="\\010"
+  K[-18]="\\013"
+  K[-19]=" "
+  K[-20]=","
+  K[-21]="*"
+  K[-22]=" \\009\\013\\010"
+  K[-23]="^"
+  K[-24]="$"
+  K[-25]="ÿþ"
+  K[-26]="loaddictionary"
+  K[-27]=proto@"dictionary":0
+  K[-28]="loaddictionaryfromfile"
+  K[-29]=proto@"dictionary":0
+  K[-30]="dictionary"
+  K[-31]=proto@"dictionary":0
+  K[-32]="words"
+  K[-33]=proto@"dictionary":0
+  K[-34]="split"
+  K[-35]=proto@"dictionary":0
+  K[-36]="splits"
+  K[-37]=proto@"dictionary":0
+  K[-38]="split_dict"
+  K[-39]=proto@"dictionary":0
+  K[-40]="loadphrase"
+  K[-41]=proto@"dictionary":0
+  K[-42]="dictconv"
+  K[-43]=proto@"dictionary":0
+-- code:
+0001  R0 = _G["require"]
+0002  R1 = "lpeg"
+0003  R0 = R0(R1)
+0004  R1 = {} (new, hint=0)
+0005  R2 = {} (new, hint=0)
+0006  R1["DICT"] = R2
+0007  R2 = R0["P"]
+0008  R3 = R0["C"]
+0009  R4 = R0["S"]
+0010  R5 = R0["R"]
+0011  R6 = R0["B"]
+0012  R7 = R0["V"]
+0013  R8 = R0["Cc"]
+0014  R9 = R0["Ct"]
+0015  R10 = R0["Cg"]
+0016  R11 = R0["Cs"]
+0017  R12 = R0["Cp"]
+0018  R13 = R0["Cmt"]
+0019  R14 = R2
+0020  R15 = "\000"
+0021  R14 = R14(R15)
+0022  R15 = R2
+0023  R16 = 2
+0024  R15 = R15(R16)
+0025  R16 = R2
+0026  R17 = "\010"
+0027  R16 = R16(R17)
+0028  R16 = R16 * R14
+0029  R17 = R2
+0030  R18 = "\013"
+0031  R17 = R17(R18)
+0032  R17 = R17 * R14
+0033  R18 = -R15
+0034  R19 = R16 + R17
+0035  R20 = R2
+0036  R21 = " "
+0037  R20 = R20(R21)
+0038  R20 = R20 * R14
+0039  R21 = R2
+0040  R22 = ","
+0041  R21 = R21(R22)
+0042  R21 = R21 * R14
+0043  R22 = R2
+0044  R23 = "*"
+0045  R22 = R22(R23)
+0046  R22 = R22 * R14
+0047  R23 = R2
+0048  R24 = R4
+0049  R25 = " \009\013\010"
+0050  R24 = R24(R25)
+0051  R24 = R24 * R14
+0052  R23 = R23(R24)
+0053  R24 = "\000"
+0054  R25 = "^"
+0055  R26 = R24
+0056  R25 = concat(R25..R26)
+0057  R26 = "$"
+0058  R27 = R24
+0059  R26 = concat(R26..R27)
+0060  R27 = " "
+0061  R28 = R24
+0062  R27 = concat(R27..R28)
+0063  R28 = "ÿþ"
+0064  R29 = 0
+0065  R29 = R23 ^ R29
+0066  R30 = R9
+0067  R31 = R9
+0068  R32 = R12
+0069  R32 = R32()
+0070  R33 = R3
+0071  R34 = R15 - R23
+0072  R35 = 1
+0073  R34 = R34 ^ R35
+0074  R33 = R33(R34)
+0075  R32 = R32 * R33
+0076  R33 = R12
+0077  R33 = R33()
+0078  R32 = R32 * R33
+0079  R33 = 0
+0080  R33 = R23 ^ R33
+0081  R32 = R32 * R33
+0082  R31 = R31(R32)
+0083  R32 = 0
+0084  R31 = R31 ^ R32
+0085  R30 = R30(R31)
+0086  R29 = R29 * R30
+0087  R30 = closure(proto@"dictionary":0)
+0088  R1["loaddictionary"] = R30
+0089  R30 = closure(proto@"dictionary":0)
+0090  R1["loaddictionaryfromfile"] = R30
+0091  R30 = closure(proto@"dictionary":0)
+0092  R1["dictionary"] = R30
+0093  R30 = closure(proto@"dictionary":0)
+0094  R1["words"] = R30
+0095  R30 = closure(proto@"dictionary":0)
+0096  R1["split"] = R30
+0097  R30 = closure(proto@"dictionary":0)
+0098  R1["splits"] = R30
+0099  R30 = closure(proto@"dictionary":0)
+0100  R1["split_dict"] = R30
+0101  R30 = closure(proto@"dictionary":0)
+0102  R1["loadphrase"] = R30
+0103  R30 = closure(proto@"dictionary":0)
+0104  R1["dictconv"] = R30
+0105  close upvals >= R0; goto 0106
+0106  return R1
+
+
+========================= PROTO root.27 (parent: root) =========================
+-- params=4 framesize=24 upvalues=16 nconsts(gc=nil num=1)
+  K[-1]="DICT"
+  K[-2]=proto@"dictionary":0
+  K[-3]=""
+  K[-4]="match"
+  KNUM[0]=1
+  UV0 -> rootlocal[1] immut
+  UV1 -> rootlocal[2] immut
+  UV2 -> rootlocal[28] immut
+  UV3 -> rootlocal[9] immut
+  UV4 -> rootlocal[3] immut
+  UV5 -> rootlocal[15] immut
+  UV6 -> rootlocal[19] immut
+  UV7 -> rootlocal[18] immut
+  UV8 -> rootlocal[20] immut
+  UV9 -> rootlocal[21] immut
+  UV10 -> rootlocal[22] immut
+  UV11 -> rootlocal[13] immut
+  UV12 -> rootlocal[11] immut
+  UV13 -> rootlocal[8] immut
+  UV14 -> rootlocal[25] immut
+  UV15 -> rootlocal[26] immut
+-- code:
+0001  if R3 then -> (next JMP)
+0002  goto 0012
+0003  R4 = UV0
+0004  R4 = R4["DICT"]
+0005  R4 = R4[R0]
+0006  if not R4 then -> (next JMP)
+0007  goto 0012
+0008  R4 = UV0
+0009  R4 = R4["DICT"]
+0010  R4 = R4[R0]
+0011  close upvals >= R0; goto 0184
+0012  R4 = UV1
+0013  R5 = UV2
+0014  R4 = R4(R5)
+0015  R5 = -1
+0016  R4 = R4 ^ R5
+0017  R5 = UV3
+0018  R6 = UV4
+0019  R7 = UV5
+0020  R8 = UV6
+0021  R9 = UV7
+0022  R8 = R8 + R9
+0023  R7 = R7 - R8
+0024  R8 = 1
+0025  R7 = R7 ^ R8
+0026  R6 = R6(R7)
+0027  R7 = UV6
+0028  R8 = 1
+0029  R7 = R7 ^ R8
+0030  R8 = UV7
+0031  R7 = R7 + R8
+0032  R6 = R6 * R7
+0033  R7 = 0
+0034  R6 = R6 ^ R7
+0035  R5 = R5(R6)
+0036  R4 = R4 * R5
+0037  R5 = UV4
+0038  R6 = UV5
+0039  R7 = UV8
+0040  R6 = R6 - R7
+0041  R7 = 1
+0042  R6 = R6 ^ R7
+0043  R5 = R5(R6)
+0044  R6 = UV8
+0045  R7 = 0
+0046  R6 = R6 ^ R7
+0047  R5 = R5 * R6
+0048  R6 = UV4
+0049  R7 = UV5
+0050  R8 = UV8
+0051  R9 = UV9
+0052  R8 = R8 + R9
+0053  R7 = R7 - R8
+0054  R8 = 1
+0055  R7 = R7 ^ R8
+0056  R6 = R6(R7)
+0057  R7 = UV8
+0058  R8 = 0
+0059  R7 = R7 ^ R8
+0060  R6 = R6 * R7
+0061  R7 = UV9
+0062  R8 = UV10
+0063  R9 = UV8
+0064  R8 = R8 + R9
+0065  R8 = #R8
+0066  R8 = -R8
+0067  R7 = R7 * R8
+0068  R7 = R7 * R6
+0069  R8 = UV8
+0070  R9 = 0
+0071  R8 = R8 ^ R9
+0072  R9 = UV4
+0073  R10 = UV5
+0074  R11 = UV8
+0075  R10 = R10 - R11
+0076  R11 = 1
+0077  R10 = R10 ^ R11
+0078  R9 = R9(R10)
+0079  R8 = R8 * R9
+0080  R9 = UV8
+0081  R10 = 0
+0082  R9 = R9 ^ R10
+0083  R8 = R8 * R9
+0084  R9 = UV11
+0085  R10 = UV3
+0086  R11 = 1
+0087  R11 = R7 ^ R11
+0088  R10 = R10(R11)
+0089  R10 = R6 * R10
+0090  R11 = UV3
+0091  R12 = 1
+0092  R12 = R8 ^ R12
+0093  R11 = R11(R12)
+0094  R10 = R10 * R11
+0095  R11 = closure(proto@"dictionary":0)
+0096  R9 = R9(R10,R11)
+0097  R10 = UV3
+0098  R11 = UV3
+0099  R12 = 0
+0100  R12 = R8 ^ R12
+0101  R11 = R11(R12)
+0102  R11 = R5 * R11
+0103  R10 = R10(R11)
+0104  R9 = R9 + R10
+0105  R10 = UV12
+0106  R11 = UV10
+0107  R12 = ""
+0108  R11 = R11 / R12
+0109  R12 = UV13
+0110  R13 = UV14
+0111  R12 = R12(R13)
+0112  R13 = UV1
+0113  R14 = true
+0114  R13 = R13(R14)
+0115  R12 = R12 * R13
+0116  R11 = R11 + R12
+0117  R12 = UV5
+0118  R13 = UV10
+0119  R12 = R12 - R13
+0120  R13 = 1
+0121  R12 = R12 ^ R13
+0122  R11 = R11 * R12
+0123  R12 = UV10
+0124  R13 = ""
+0125  R12 = R12 / R13
+0126  R13 = UV1
+0127  R14 = true
+0128  R13 = R13(R14)
+0129  R14 = UV13
+0130  R15 = UV15
+0131  R14 = R14(R15)
+0132  R13 = R13 * R14
+0133  R12 = R12 + R13
+0134  R11 = R11 * R12
+0135  R12 = UV13
+0136  R13 = UV14
+0137  R12 = R12(R13)
+0138  R13 = UV5
+0139  R12 = R12 * R13
+0140  R13 = UV13
+0141  R14 = UV15
+0142  R13 = R13(R14)
+0143  R12 = R12 * R13
+0144  R11 = R11 + R12
+0145  R10 = R10(R11)
+0146  R12 = R4
+0147  R11 = R4["match"]
+0148  R13 = R1
+0149  R11 = R11(R12,R13)
+0150  R12 = 1
+0151  R13 = #R11
+0152  R14 = 1
+0153  for R12=R12(start),R13(stop),R14(step); idx R15; if out-of-range goto 0179
+0154  R17 = R9
+0155  R16 = R9["match"]
+0156  R18 = R11[R15]
+0157  R16 = R16(R17,R18)
+0158  R17 = 1
+0159  R18 = #R16
+0160  R19 = 2
+0161  for R17=R17(start),R18(stop),R19(step); idx R20; if out-of-range goto 0178
+0162  if not R3 then -> (next JMP)
+0163  goto 0167
+0164  R21 = R16[R20]
+0165  if R21 then -> (next JMP)
+0166  goto 0174
+0167  R22 = R10
+0168  R21 = R10["match"]
+0169  R23 = R16[R20]
+0170  R21 = R21(R22,R23)
+0171  if R21 then -> (next JMP)
+0172  goto 0174
+0173  R21 = R16[R20]
+0174  R22 = R20 + 1
+0175  R22 = R16[R22]
+0176  R2[R21] = R22
+0177  R20 += R19(step); if in-range goto 0162
+0178  R15 += R14(step); if in-range goto 0154
+0179  R12 = UV0
+0180  R12 = R12["DICT"]
+0181  R12[R0] = R2
+0182  close upvals >= R0; goto 0183
+0183  return R2
+0184  return R4
+
+
+========================= PROTO root.27.2 (parent: root.27) =========================
+-- params=5 framesize=14 upvalues=0 nconsts(gc=nil num=2)
+  K[-1]="unpack"
+  KNUM[0]=1
+  KNUM[1]=4.5035996273705e+15
+-- code:
+0001  R5 = {} (new, hint=0)
+0002  R6 = 1
+0003  R7 = #R3
+0004  R8 = 1
+0005  for R6=R6(start),R7(stop),R8(step); idx R9; if out-of-range goto 0029
+0006  R10 = #R5
+0007  R10 = R10 + 1
+0008  R11 = R2
+0009  R12 = R3[R9]
+0010  R11 = concat(R11..R12)
+0011  R5[R10] = R11
+0012  R10 = #R5
+0013  R10 = R10 + 1
+0014  R11 = {} (new, hint=3)
+0015  R12 = _G["unpack"]
+0016  R13 = R4
+0017  R12.. = R12(R13) (multi)
+0018  setlist R0[base=4.5035996273705e+15...] = R12..
+0019  R5[R10] = R11
+0020  R10 = #R5
+0021  R10 = R5[R10]
+0022  R11 = #R4
+0023  R12 = #R4
+0024  R12 = R4[R12]
+0025  R13 = R3[R9]
+0026  R12 = concat(R12..R13)
+0027  R10[R11] = R12
+0028  R9 += R8(step); if in-range goto 0006
+0029  R6 = true
+0030  R7 = R5
+0031  return R6
+
+
+========================= PROTO root.29 (parent: root) =========================
+-- params=3 framesize=10 upvalues=1 nconsts(gc=nil num=0)
+  K[-1]="DICT"
+  K[-2]="io"
+  K[-3]="open"
+  K[-4]="read"
+  K[-5]="*a"
+  K[-6]="close"
+  K[-7]="loaddictionary"
+  UV0 -> rootlocal[1] immut
+-- code:
+0001  if R2 then -> (next JMP)
+0002  goto 0012
+0003  R3 = UV0
+0004  R3 = R3["DICT"]
+0005  R3 = R3[R0]
+0006  if not R3 then -> (next JMP)
+0007  goto 0012
+0008  R3 = UV0
+0009  R3 = R3["DICT"]
+0010  R3 = R3[R0]
+0011  return R3
+0012  R3 = _G["io"]
+0013  R3 = R3["open"]
+0014  R4 = R0
+0015  R3 = R3(R4)
+0016  if R3 then -> (next JMP)
+0017  goto 0019
+0018  return R1
+0019  R5 = R3
+0020  R4 = R3["read"]
+0021  R6 = "*a"
+0022  R4 = R4(R5,R6)
+0023  R6 = R3
+0024  R5 = R3["close"]
+0025  R5(R6)  (0 results)
+0026  R5 = UV0
+0027  R5 = R5["loaddictionary"]
+0028  R6 = R0
+0029  R7 = R4
+0030  R8 = R1
+0031  R9 = R2
+0032  return R5(R6..R9)  (tailcall)
+
+
+========================= PROTO root.31 (parent: root) =========================
+-- params=3 framesize=14 upvalues=6 nconsts(gc=nil num=1)
+  K[-1]=proto@"dictionary":0
+  K[-2]="match"
+  K[-3]="ipairs"
+  KNUM[0]=1
+  UV0 -> rootlocal[25] immut
+  UV1 -> rootlocal[26] immut
+  UV2 -> rootlocal[27] immut
+  UV3 -> rootlocal[11] immut
+  UV4 -> rootlocal[15] immut
+  UV5 -> rootlocal[29] immut
+-- code:
+0001  R3 = closure(proto@"dictionary":0)
+0002  R4 = UV3
+0003  R5 = UV4
+0004  R5 = R3 + R5
+0005  R6 = 1
+0006  R5 = R5 ^ R6
+0007  R4 = R4(R5)
+0008  R6 = R4
+0009  R5 = R4["match"]
+0010  R7 = R0
+0011  R5 = R5(R6,R7)
+0012  R6 = {} (new, hint=0)
+0013  R7 = _G["ipairs"]
+0014  R8 = UV5
+0015  R9 = R8
+0016  R8 = R8["match"]
+0017  R10 = R5
+0018  R8.. = R8(R9,R10) (multi)
+0019  R7.. = R7(, ...multi)
+0020  goto 0025
+0021  R12 = #R6
+0022  R12 = R12 + 1
+0023  R13 = R11[2]
+0024  R6[R12] = R13
+0025  R10,.. = (for-iter) R7(R8,R9)  [nres=2]
+0026  iter-loop -> 0021
+0027  close upvals >= R0; goto 0028
+0028  return R6
+
+
+========================= PROTO root.31.1 (parent: root.31) =========================
+-- params=2 framesize=14 upvalues=5 nconsts(gc=nil num=2)
+  K[-1]="string"
+  K[-2]="find"
+  K[-3]="sub"
+  K[-4]=""
+  K[-5]="table"
+  K[-6]="concat"
+  KNUM[0]=2
+  KNUM[1]=1
+  UV0 -> root.31local[2] immut
+  UV1 -> root.31upvalue[0]
+  UV2 -> root.31upvalue[1]
+  UV3 -> root.31local[1] immut
+  UV4 -> root.31upvalue[2]
+-- code:
+0001  R2 = UV0
+0002  if not R2 then -> (next JMP)
+0003  goto 0021
+0004  R2 = #R0
+0005  if R2 ~= 2 then -> (next JMP)
+0006  goto 0021
+0007  R2 = _G["string"]
+0008  R2 = R2["find"]
+0009  R3 = UV0
+0010  R5 = R0
+0011  R4 = R0["sub"]
+0012  R6 = 1
+0013  R7 = 1
+0014  R4 = R4(R5,R6,R7)
+0015  R5 = 1
+0016  R6 = true
+0017  R2 = R2(R3,R4,R5,R6)
+0018  if not R2 then -> (next JMP)
+0019  goto 0021
+0020  return
+0021  if R1 ~= 1 then -> (next JMP)
+0022  goto 0026
+0023  R2 = UV1
+0024  if R2 then -> (next JMP)
+0025  goto 0027
+0026  R2 = ""
+0027  R3 = #R0
+0028  R4 = R1
+0029  R5 = -2
+0030  for R3=R3(start),R4(stop),R5(step); idx R6; if out-of-range goto 0080
+0031  R8 = R0
+0032  R7 = R0["sub"]
+0033  R9 = R1
+0034  R10 = R6
+0035  R7 = R7(R8,R9,R10)
+0036  R8 = #R0
+0037  if R6 ~= R8 then -> (next JMP)
+0038  goto 0041
+0039  R8 = UV2
+0040  goto 0044
+0041  R8 = false
+0042  goto 0044
+0043  R8 = true
+0044  if not R8 then -> (next JMP)
+0045  goto 0061
+0046  R9 = UV3
+0047  R10 = R2
+0048  R11 = R7
+0049  R12 = R8
+0050  R10 = concat(R10..R12)
+0051  R9 = R9[R10]
+0052  if R9 then -> (next JMP)
+0053  goto 0070
+0054  R9 = UV3
+0055  R10 = R7
+0056  R11 = R8
+0057  R10 = concat(R10..R11)
+0058  R9 = R9[R10]
+0059  if R9 then -> (next JMP)
+0060  goto 0070
+0061  R9 = UV3
+0062  R10 = R2
+0063  R11 = R7
+0064  R10 = concat(R10..R11)
+0065  R9 = R9[R10]
+0066  if R9 then -> (next JMP)
+0067  goto 0070
+0068  R9 = UV3
+0069  R9 = R9[R7]
+0070  if not R9 then -> (next JMP)
+0071  goto 0079
+0072  R10 = R6 + 1
+0073  R11 = _G["table"]
+0074  R11 = R11["concat"]
+0075  R12 = R9
+0076  R13 = UV4
+0077  R11.. = R11(R12,R13) (multi)
+0078  return R10.. (multi)
+0079  R6 += R5(step); if in-range goto 0031
+0080  return
+
+
+========================= PROTO root.33 (parent: root) =========================
+-- params=1 framesize=11 upvalues=1 nconsts(gc=nil num=1)
+  K[-1]="ipairs"
+  K[-2]="match"
+  K[-3]=template{}
+  K[-4]="offset"
+  K[-5]="len"
+  KNUM[0]=1
+  UV0 -> rootlocal[29] immut
+-- code:
+0001  R1 = {} (new, hint=0)
+0002  R2 = _G["ipairs"]
+0003  R3 = UV0
+0004  R4 = R3
+0005  R3 = R3["match"]
+0006  R5 = R0
+0007  R3.. = R3(R4,R5) (multi)
+0008  R2.. = R2(, ...multi)
+0009  goto 0020
+0010  R7 = #R1
+0011  R7 = R7 + 1
+0012  R8 = copy({tmpl})
+0013  R9 = R6[1]
+0014  R8["offset"] = R9
+0015  R9 = R6[3]
+0016  R10 = R6[1]
+0017  R9 = R9 - R10
+0018  R8["len"] = R9
+0019  R1[R7] = R8
+0020  R5,.. = (for-iter) R2(R3,R4)  [nres=2]
+0021  iter-loop -> 0010
+0022  return R1
+
+
+========================= PROTO root.35 (parent: root) =========================
+-- params=2 framesize=7 upvalues=2 nconsts(gc=nil num=1)
+  K[-1]=".,"
+  K[-2]="C"
+  K[-3]="S"
+  K[-4]="Ct"
+  K[-5]="match"
+  KNUM[0]=2
+  UV0 -> rootlocal[0] immut
+  UV1 -> rootlocal[14] immut
+-- code:
+0001  if R1 then -> (next JMP)
+0002  goto 0004
+0003  R1 = ".,"
+0004  R2 = UV0
+0005  R2 = R2["C"]
+0006  R3 = UV0
+0007  R3 = R3["S"]
+0008  R4 = R1
+0009  R3 = R3(R4)
+0010  R4 = UV1
+0011  R3 = R3 * R4
+0012  R2 = R2(R3)
+0013  R1 = R2
+0014  R2 = UV0
+0015  R2 = R2["C"]
+0016  R3 = 2 - R1
+0017  R4 = 1
+0018  R3 = R3 ^ R4
+0019  R2 = R2(R3)
+0020  R3 = UV0
+0021  R3 = R3["Ct"]
+0022  R4 = 0
+0023  R4 = R1 ^ R4
+0024  R5 = 1
+0025  R5 = R1 ^ R5
+0026  R5 = R2 * R5
+0027  R6 = 0
+0028  R5 = R5 ^ R6
+0029  R4 = R4 * R5
+0030  R5 = -1
+0031  R5 = R2 ^ R5
+0032  R4 = R4 * R5
+0033  R3 = R3(R4)
+0034  R4 = UV0
+0035  R4 = R4["match"]
+0036  R5 = R3
+0037  R6 = R0
+0038  return R4(R5..R6)  (tailcall)
+
+
+========================= PROTO root.37 (parent: root) =========================
+-- params=2 framesize=7 upvalues=1 nconsts(gc=nil num=1)
+  K[-1]=".,"
+  K[-2]="C"
+  K[-3]="S"
+  K[-4]="Ct"
+  K[-5]="match"
+  KNUM[0]=1
+  UV0 -> rootlocal[0] immut
+-- code:
+0001  if R1 then -> (next JMP)
+0002  goto 0004
+0003  R1 = ".,"
+0004  R2 = UV0
+0005  R2 = R2["C"]
+0006  R3 = UV0
+0007  R3 = R3["S"]
+0008  R4 = R1
+0009  R3.. = R3(R4) (multi)
+0010  R2.. = R2(, ...multi)
+0011  R1 = R2
+0012  R2 = UV0
+0013  R2 = R2["C"]
+0014  R3 = 1 - R1
+0015  R4 = 1
+0016  R3 = R3 ^ R4
+0017  R2 = R2(R3)
+0018  R3 = UV0
+0019  R3 = R3["Ct"]
+0020  R4 = 0
+0021  R4 = R1 ^ R4
+0022  R5 = 1
+0023  R5 = R1 ^ R5
+0024  R5 = R2 * R5
+0025  R6 = 0
+0026  R5 = R5 ^ R6
+0027  R4 = R4 * R5
+0028  R5 = -1
+0029  R5 = R2 ^ R5
+0030  R4 = R4 * R5
+0031  R3 = R3(R4)
+0032  R4 = UV0
+0033  R4 = R4["match"]
+0034  R5 = R3
+0035  R6 = R0
+0036  return R4(R5..R6)  (tailcall)
+
+
+========================= PROTO root.39 (parent: root) =========================
+-- params=3 framesize=9 upvalues=3 nconsts(gc=nil num=1)
+  K[-1]=proto@"dictionary":0
+  K[-2]=".,"
+  K[-3]="C"
+  K[-4]="S"
+  K[-5]="Ct"
+  K[-6]="match"
+  KNUM[0]=2
+  UV0 -> rootlocal[1] immut
+  UV1 -> rootlocal[0] immut
+  UV2 -> rootlocal[14] immut
+-- code:
+0001  R3 = closure(proto@"dictionary":0)
+0002  if R1 then -> (next JMP)
+0003  goto 0005
+0004  R1 = ".,"
+0005  R4 = UV1
+0006  R4 = R4["C"]
+0007  R5 = UV1
+0008  R5 = R5["S"]
+0009  R6 = R1
+0010  R5 = R5(R6)
+0011  R6 = UV2
+0012  R5 = R5 * R6
+0013  R4 = R4(R5)
+0014  R1 = R4
+0015  R4 = UV1
+0016  R4 = R4["C"]
+0017  R5 = 2 - R1
+0018  R6 = 1
+0019  R5 = R5 ^ R6
+0020  R4 = R4(R5)
+0021  R5 = UV1
+0022  R5 = R5["Ct"]
+0023  R6 = 0
+0024  R6 = R1 ^ R6
+0025  R7 = R1 / R3
+0026  R8 = 1
+0027  R7 = R7 ^ R8
+0028  R7 = R7 * R4
+0029  R7 = R7 + R4
+0030  R8 = 0
+0031  R7 = R7 ^ R8
+0032  R6 = R6 * R7
+0033  R7 = 0
+0034  R7 = R1 ^ R7
+0035  R6 = R6 * R7
+0036  R5 = R5(R6)
+0037  R6 = UV1
+0038  R6 = R6["match"]
+0039  R7 = R5
+0040  R8 = R0
+0041  close upvals >= R0; goto 0042
+0042  return R6(R7..R8)  (tailcall)
+
+
+========================= PROTO root.39.1 (parent: root.39) =========================
+-- params=1 framesize=5 upvalues=2 nconsts(gc=nil num=0)
+  K[-1]="dictionary"
+  K[-2]="table"
+  K[-3]="concat"
+  K[-4]=" \\000"
+  UV0 -> root.39upvalue[0]
+  UV1 -> root.39local[2] immut
+-- code:
+0001  R1 = UV0
+0002  R1 = R1["dictionary"]
+0003  R2 = R0
+0004  R3 = UV1
+0005  R1 = R1(R2,R3)
+0006  R2 = _G["table"]
+0007  R2 = R2["concat"]
+0008  R3 = R1
+0009  R4 = " \000"
+0010  return R2(R3..R4)  (tailcall)
+
+
+========================= PROTO root.41 (parent: root) =========================
+-- params=1 framesize=9 upvalues=11 nconsts(gc=nil num=0)
+  K[-1]=proto@"dictionary":0
+  K[-2]=proto@"dictionary":0
+  UV0 -> rootlocal[9] immut
+  UV1 -> rootlocal[3] immut
+  UV2 -> rootlocal[15] immut
+  UV3 -> rootlocal[20] immut
+  UV4 -> rootlocal[24] immut
+  UV5 -> rootlocal[25] immut
+  UV6 -> rootlocal[26] immut
+  UV7 -> rootlocal[27] immut
+  UV8 -> rootlocal[11] immut
+  UV9 -> rootlocal[13] immut
+  UV10 -> rootlocal[8] immut
+-- code:
+0001  R1 = UV0
+0002  R2 = UV1
+0003  R3 = UV2
+0004  R4 = UV3
+0005  R3 = R3 - R4
+0006  R4 = 1
+0007  R3 = R3 ^ R4
+0008  R2 = R2(R3)
+0009  R3 = UV3
+0010  R4 = 0
+0011  R3 = R3 ^ R4
+0012  R2 = R2 * R3
+0013  R3 = 1
+0014  R2 = R2 ^ R3
+0015  R1 = R1(R2)
+0016  R2 = closure(proto@"dictionary":0)
+0017  R3 = UV1
+0018  R4 = UV2
+0019  R5 = UV3
+0020  R4 = R4 - R5
+0021  R5 = 1
+0022  R4 = R4 ^ R5
+0023  R3 = R3(R4)
+0024  R4 = UV3
+0025  R5 = 0
+0026  R4 = R4 ^ R5
+0027  R3 = R3 * R4
+0028  R4 = UV8
+0029  R5 = UV9
+0030  R6 = R3 * R3
+0031  R7 = R2
+0032  R5 = R5(R6,R7)
+0033  R6 = #R3
+0034  R7 = UV10
+0035  R8 = UV7
+0036  R7 = R7(R8)
+0037  R6 = R6 * R7
+0038  R7 = -1
+0039  R6 = R6 ^ R7
+0040  R5 = R5 * R6
+0041  R5 = R5 + R3
+0042  R6 = 0
+0043  R5 = R5 ^ R6
+0044  R4 = R4(R5)
+0045  R5 = closure(proto@"dictionary":0)
+0046  close upvals >= R0; goto 0047
+0047  return R5
+
+
+========================= PROTO root.41.1 (parent: root.41) =========================
+-- params=5 framesize=25 upvalues=5 nconsts(gc=nil num=3)
+  K[-1]=";"
+  K[-2]=""
+  K[-3]="sub"
+  K[-4]="table"
+  K[-5]="concat"
+  KNUM[0]=1
+  KNUM[1]=4
+  KNUM[2]=2
+  UV0 -> root.41upvalue[4]
+  UV1 -> root.41upvalue[5]
+  UV2 -> root.41upvalue[6]
+  UV3 -> root.41local[0] immut
+  UV4 -> root.41upvalue[7]
+-- code:
+0001  R5 = R2
+0002  R6 = ";"
+0003  R7 = UV0
+0004  R8 = R3
+0005  R5 = concat(R5..R8)
+0006  R6 = 1
+0007  R7 = #R2
+0008  R8 = 2
+0009  for R6=R6(start),R7(stop),R8(step); idx R9; if out-of-range goto 0084
+0010  if R9 ~= 1 then -> (next JMP)
+0011  goto 0015
+0012  R10 = UV1
+0013  if R10 then -> (next JMP)
+0014  goto 0016
+0015  R10 = ""
+0016  R11 = #R5
+0017  R12 = #R2
+0018  R12 = R12 + 4
+0019  R13 = -2
+0020  for R11=R11(start),R12(stop),R13(step); idx R14; if out-of-range goto 0083
+0021  R15 = #R5
+0022  if R14 ~= R15 then -> (next JMP)
+0023  goto 0026
+0024  R15 = UV2
+0025  goto 0029
+0026  R15 = false
+0027  goto 0029
+0028  R15 = true
+0029  R17 = R5
+0030  R16 = R5["sub"]
+0031  R18 = R9
+0032  R19 = R14
+0033  R16 = R16(R17,R18,R19)
+0034  if not R15 then -> (next JMP)
+0035  goto 0051
+0036  R17 = UV3
+0037  R18 = R10
+0038  R19 = R16
+0039  R20 = R15
+0040  R18 = concat(R18..R20)
+0041  R17 = R17[R18]
+0042  if R17 then -> (next JMP)
+0043  goto 0060
+0044  R17 = UV3
+0045  R18 = R16
+0046  R19 = R15
+0047  R18 = concat(R18..R19)
+0048  R17 = R17[R18]
+0049  if R17 then -> (next JMP)
+0050  goto 0060
+0051  R17 = UV3
+0052  R18 = R10
+0053  R19 = R16
+0054  R18 = concat(R18..R19)
+0055  R17 = R17[R18]
+0056  if R17 then -> (next JMP)
+0057  goto 0060
+0058  R17 = UV3
+0059  R17 = R17[R16]
+0060  if not R17 then -> (next JMP)
+0061  goto 0082
+0062  R18 = true
+0063  R20 = R2
+0064  R19 = R2["sub"]
+0065  R21 = 1
+0066  R22 = R9 + 1
+0067  R22 = R22 - 2
+0068  R19 = R19(R20,R21,R22)
+0069  R20 = _G["table"]
+0070  R20 = R20["concat"]
+0071  R21 = R17
+0072  R22 = UV4
+0073  R20 = R20(R21,R22)
+0074  R22 = R5
+0075  R21 = R5["sub"]
+0076  R23 = R14 - 1
+0077  R23 = R23 + 2
+0078  R24 = #R5
+0079  R21 = R21(R22,R23,R24)
+0080  R19 = concat(R19..R21)
+0081  return R18
+0082  R14 += R13(step); if in-range goto 0021
+0083  R9 += R8(step); if in-range goto 0010
+0084  return
+
+
+========================= PROTO root.41.2 (parent: root.41) =========================
+-- params=1 framesize=4 upvalues=2 nconsts(gc=nil num=0)
+  K[-1]="match"
+  UV0 -> root.41local[4] immut
+  UV1 -> root.41local[1] immut
+-- code:
+0001  R1 = UV0
+0002  R2 = R1
+0003  R1 = R1["match"]
+0004  R3 = R0
+0005  R1 = R1(R2,R3)
+0006  R0 = R1
+0007  R1 = UV1
+0008  R2 = R1
+0009  R1 = R1["match"]
+0010  R3 = R0
+0011  R1 = R1(R2,R3)
+0012  return R1
+
+
+========================= PROTO root.43 (parent: root) =========================
+-- params=3 framesize=8 upvalues=5 nconsts(gc=nil num=0)
+  K[-1]=proto@"dictionary":0
+  K[-2]="match"
+  UV0 -> rootlocal[25] immut
+  UV1 -> rootlocal[26] immut
+  UV2 -> rootlocal[27] immut
+  UV3 -> rootlocal[11] immut
+  UV4 -> rootlocal[15] immut
+-- code:
+0001  R3 = closure(proto@"dictionary":0)
+0002  R4 = UV3
+0003  R5 = UV4
+0004  R5 = R3 + R5
+0005  R6 = 1
+0006  R5 = R5 ^ R6
+0007  R4 = R4(R5)
+0008  R6 = R4
+0009  R5 = R4["match"]
+0010  R7 = R0
+0011  close upvals >= R0; goto 0012
+0012  return R5(R6..R7)  (tailcall)
+
+
+========================= PROTO root.43.1 (parent: root.43) =========================
+-- params=2 framesize=14 upvalues=5 nconsts(gc=nil num=1)
+  K[-1]=""
+  K[-2]="sub"
+  K[-3]="table"
+  K[-4]="concat"
+  KNUM[0]=1
+  UV0 -> root.43upvalue[0]
+  UV1 -> root.43upvalue[1]
+  UV2 -> root.43local[1] immut
+  UV3 -> root.43upvalue[2]
+  UV4 -> root.43local[2] immut
+-- code:
+0001  if R1 ~= 1 then -> (next JMP)
+0002  goto 0006
+0003  R2 = UV0
+0004  if R2 then -> (next JMP)
+0005  goto 0007
+0006  R2 = ""
+0007  R3 = #R0
+0008  R4 = R1
+0009  R5 = -2
+0010  for R3=R3(start),R4(stop),R5(step); idx R6; if out-of-range goto 0070
+0011  R8 = R0
+0012  R7 = R0["sub"]
+0013  R9 = R1
+0014  R10 = R6
+0015  R7 = R7(R8,R9,R10)
+0016  R8 = #R0
+0017  if R6 ~= R8 then -> (next JMP)
+0018  goto 0021
+0019  R8 = UV1
+0020  goto 0024
+0021  R8 = false
+0022  goto 0024
+0023  R8 = true
+0024  if not R8 then -> (next JMP)
+0025  goto 0041
+0026  R9 = UV2
+0027  R10 = R2
+0028  R11 = R7
+0029  R12 = R8
+0030  R10 = concat(R10..R12)
+0031  R9 = R9[R10]
+0032  if R9 then -> (next JMP)
+0033  goto 0050
+0034  R9 = UV2
+0035  R10 = R7
+0036  R11 = R8
+0037  R10 = concat(R10..R11)
+0038  R9 = R9[R10]
+0039  if R9 then -> (next JMP)
+0040  goto 0050
+0041  R9 = UV2
+0042  R10 = R2
+0043  R11 = R7
+0044  R10 = concat(R10..R11)
+0045  R9 = R9[R10]
+0046  if R9 then -> (next JMP)
+0047  goto 0050
+0048  R9 = UV2
+0049  R9 = R9[R7]
+0050  if not R9 then -> (next JMP)
+0051  goto 0069
+0052  R10 = _G["table"]
+0053  R10 = R10["concat"]
+0054  R11 = R9
+0055  R12 = UV3
+0056  R10 = R10(R11,R12)
+0057  R11 = UV4
+0058  if not R11 then -> (next JMP)
+0059  goto 0066
+0060  R11 = UV3
+0061  R12 = R10
+0062  R13 = UV3
+0063  R11 = concat(R11..R13)
+0064  R10 = R11; if R11 then -> (next JMP)
+0065  goto 0066
+0066  R11 = R6 + 1
+0067  R12 = R10
+0068  return R11
+0069  R6 += R5(step); if in-range goto 0011
+0070  return
+
