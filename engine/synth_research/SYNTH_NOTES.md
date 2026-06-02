@@ -438,3 +438,19 @@ correct lė- /-lė units are selected.
 This is portable to Java and validatable against translate over a wordlist (as the
 transcriber hit 100%). PLAN: implement this demi-syllable sequencer in DiphoneSynth
 (replacing the wrong CV+coda single-unit selection), keep direct period concat.
+
+## saulė diagnosis: sequence is CORRECT; missing piece is PROSODY
+saulė → sa- + au + lė- + -lė covers s,a,u,l,ė exactly; ė present (0xeb), -lė is 31
+voiced periods (a long final ė, not an alias/'ai'). So the 'ai' at the end and the
+missing stress on 'a' are NOT sequence errors — they are the lack of PROSODY:
+- raw periods play at their stored pitch (207-241 samples ≈ 91-106 Hz, slightly
+  low/uneven), with no stress contour, so the 'au' diphthong is ambiguous and
+  'sáulė' has no accent.
+- the original applies intonation (proto7: resample voiced periods to a target
+  pitch from P0[5]=220 modulated by P1/P5/P6 ProsodyChange ramps; stress raises
+  pitch+amplitude on the accented syllable).
+
+So the remaining work is the PROSODY layer on top of the now-correct unit sequence:
+1. resample voiced periods to the base pitch (220) — fixes the slightly-low pitch.
+2. apply a stress contour (raise pitch/amplitude on the stressed syllable).
+This is the last layer; the hard part (correct units) is solved.
