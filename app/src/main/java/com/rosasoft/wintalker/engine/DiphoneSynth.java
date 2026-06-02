@@ -73,8 +73,11 @@ public final class DiphoneSynth {
             // affricates / digraphs keep first char (approximation for v1)
             case "ts": case "tS": return 'c';
             case "dz": case "dZ": return 'z';
-            case "S": return (char) 0xf0; // š lowercase cp1257
-            case "Z": return (char) 0xfe; // ž lowercase cp1257
+            case "S": return 's'; // š — the original voice DB has no distinct š unit
+                                  // (all special chars are voiced vowels/sonorants;
+                                  // only s/z/f/h/c fricatives exist), so approximate
+                                  // with the existing 's' instead of dropping it.
+            case "Z": return 'z'; // ž — likewise approximate with 'z'
             case "x": return 'h';
             default:
                 if (base.length() >= 1) {
