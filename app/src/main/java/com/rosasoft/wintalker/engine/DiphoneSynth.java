@@ -113,31 +113,6 @@ public final class DiphoneSynth {
         return dst;
     }
 
-    /** Try a unit name with short↔long vowel substitutions on its vowel chars. */
-    private VoiceDatabase.Entry lookupRelaxed(String name) {
-        // swap each vowel char to its long/short counterpart and retry
-        char[] cs = name.toCharArray();
-        for (int i = 0; i < cs.length; i++) {
-            char alt = vowelSwap(cs[i]);
-            if (alt != cs[i]) {
-                char orig = cs[i]; cs[i] = alt;
-                VoiceDatabase.Entry e = lookup(new String(cs));
-                if (e != null) return e;
-                cs[i] = orig;
-            }
-        }
-        return null;
-    }
-
-    private static char vowelSwap(char c) {
-        switch (c) {
-            case 'a': return (char) 0xe1; case (char) 0xe1: return 'a';
-            case 'o': return (char) 0xf3; case (char) 0xf3: return 'o';
-            case 'e': return (char) 0xeb; case (char) 0xeb: return 'e';
-            default: return c;
-        }
-    }
-
     /** Look up a unit by name, trying the exact key then simpler fallbacks. */
     private VoiceDatabase.Entry lookup(String key) {
         VoiceDatabase.Entry e = index.get(key);
@@ -159,20 +134,52 @@ public final class DiphoneSynth {
         }
         String s = seq.toString();
 
-        // Build the unit-name sequence with the demi-syllable sequencer (ported
-        // from the engine's translate; plain words match the original exactly),
-        // then concatenate each resolved unit's periods directly (proto8 appends
-        // periods to the buffer — no crossfade/leveling/resample).
+        // Select units by walking the phoneme-char string (the decoded rule):
+        //   - consonant followed by a vowel  → CV unit "-"+C+V (consumes both)
+        //   - coda consonant (after a vowel, not before one) → "-"+prevVowel+C
+        //     coda unit (consumes the consonant only)
+        //   - a vowel with no preceding consonant (word-initial / hiatus) →
+        //     stand-alone via its own onset unit "-"+V if present
+        // This renders each phoneme exactly once: labas = -la -ba -as(coda),
+        // gintaras = -gi -in(coda) -ta -ra -as(coda). Each unit's voiced periods
+        // are pitch-steadied (proto7), unvoiced left as recorded.
         List<short[]> segs = new ArrayList<>();
-        for (String name : UnitSequencer.sequence(s)) {
-            VoiceDatabase.Entry e = lookup(name);
-            if (e == null) {
-                // fallback: try short/long vowel swaps within the unit name
-                e = lookupRelaxed(name);
+        int i = 0;
+        char prevVowel = 0;
+        while (i < s.length()) {
+            char c = s.charAt(i);
+            VoiceDatabase.Entry e = null;
+            int consumed = 1;
+            if (!isVowelChar(c) && i + 1 < s.length() && isVowelChar(s.charAt(i + 1))) {
+                // CV onset unit
+                e = lookup("-" + c + s.charAt(i + 1));
+                if (e == null) e = lookupFlexible(c, s.charAt(i + 1));
+                if (e != null) { consumed = 2; prevVowel = s.charAt(i + 1); }
+            }
+            if (e == null && !isVowelChar(c) && prevVowel != 0) {
+                // coda consonant after the previous vowel
+                e = lookup("-" + prevVowel + c);
+                if (e == null) e = lookupFlexible(prevVowel, c);
+            }
+            if (e == null && isVowelChar(c)) {
+                // vowel not consumed by a CV (word-initial / after vowel): onset "-V?"
+                // fall back to a CV-style unit beginning with this vowel
+                e = lookup("-" + c + (i + 1 < s.length() ? "" + s.charAt(i + 1) : ""));
+                if (e == null) {
+                    // try any "-V x" unit; else skip (carried by neighbour)
+                    prevVowel = c;
+                }
+                if (e != null && i + 1 < s.length()) consumed = 2;
             }
             if (e != null) {
+                // The original engine (proto8) simply appends each period's samples
+                // to the output buffer — no inter-unit crossfade, no amplitude
+                // leveling, no resampling. Concatenate the unit's periods directly.
                 for (short[] p : db.unitPeriods(e)) segs.add(p);
             }
+            if (isVowelChar(c)) prevVowel = c;
+            else if (consumed == 2) prevVowel = s.charAt(i + 1);
+            i += consumed;
         }
         if (segs.isEmpty()) return new short[0];
 
