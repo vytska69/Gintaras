@@ -401,3 +401,21 @@ Either (a) reimplement the demi-diphone splitter from these observed patterns, o
 (b) run the actual translate offline to dump sequences for a wordlist. (a) is the
 on-device path. The units exist; correct sequencing is the remaining work and is
 now grounded in the real engine output, not guesses.
+
+## Verified: full offline synthesis with the REAL translate sequence
+Built the complete offline pipeline (gen_real_sequence.lua): run the actual
+translate.translate(utf16(word), nil, voiceTable) → it returns an ordered list of
+UNIT-NAME STRINGS that are EXACT keys into the voice table, e.g. labas →
+{6c0061002d00='la-', 2d006c006100='-la', 620061002d00='ba-', 2d006200='-ba',
+2d00610073='-as'}. Each key's records point at sample blocks; concatenating them
+gives the audio. (My earlier 0-sample attempt mis-built the key; the element IS
+the key directly.)
+
+Result: labas 11587, lietuva 14012, gintaras 16982, saule 9500 samples; clean WAV
+(3.36s, peak 32737). This is the FIRST synthesis using the authoritative unit
+sequence rather than my guessed selection. Sent real_seq.wav for evaluation.
+
+If correct, the on-device path is to PORT translate's sequencing. Since translate
+is lpeg-based, the cleanest port may be a direct demi-diphone rule reproducing its
+output, validated against translate over a wordlist (like we did 100% for the
+grapheme→phoneme transcriber).
