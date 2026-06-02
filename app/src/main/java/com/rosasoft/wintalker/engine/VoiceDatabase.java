@@ -112,13 +112,17 @@ public final class VoiceDatabase {
     private short i16(int p) { return (short) u16(p); }
 
     /**
-     * The low byte of each UTF-16LE code unit in an entry name is the cp1257
-     * phoneme symbol; returns the decoded unit name (e.g. "-la", "ab").
+     * Decode an entry name from its UTF-16LE code units (e.g. "-la", "ab"). The
+     * FULL code unit is kept — the high byte matters: the special Lithuanian
+     * letters are stored as U+01xx code units (č=U+010D, š=U+0111, ž=U+0163,
+     * ā=U+0155, ę=U+0107, ū=U+0159), distinct from the plain ascii/cp1257 chars
+     * that share a low byte (e.g. ž U+0163 vs c U+0063). Earlier this took only
+     * the low byte, collapsing those and corrupting š/ž/č and the long vowels.
      */
     public static String unitName(byte[] name) {
         StringBuilder sb = new StringBuilder(name.length / 2);
         for (int i = 0; i + 1 < name.length; i += 2)
-            sb.append((char) (name[i] & 0xFF));
+            sb.append((char) ((name[i] & 0xFF) | ((name[i + 1] & 0xFF) << 8)));
         return sb.toString();
     }
 
