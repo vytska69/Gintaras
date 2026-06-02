@@ -26,6 +26,14 @@ public final class DiphoneSynth {
      *  steps them toward this base. */
     private static final int BASE_PERIOD = 220;
 
+    /** Prosody pitch scale = P0[6]/100 (voicesynth loadvoice). Maps the slewing
+     *  prosody offset (+-100) to a period adjustment in samples. */
+    private static final float PROSODY_SCALE = 0.62f;
+    /** P1.ProsodyChange = {0,50,10,20,50,160}: the slew targets root.47 selects —
+     *  PC[6]=160 over the first half of a word, PC[1]=0 over the second. */
+    private static final int PC_PEAK = 160;
+    private static final int PC_END = 0;
+
     private final VoiceDatabase db;
     private final Map<String, VoiceDatabase.Entry> index;
     private CandidateSequencer sequencer;
@@ -183,29 +191,43 @@ public final class DiphoneSynth {
         }
         if (segs.isEmpty()) return new short[0];
 
-        // proto7 pitch step: the recorded voiced periods sit slightly high
-        // (median ~105.5 Hz); the engine's base pitch period is BASE_PERIOD
-        // (P0[5]=220 ≈ 100 Hz). Lengthen every voiced period by ONE uniform factor
-        // toward that base — this lowers pitch a touch while preserving the natural
-        // period-to-period variation (intonation). Unvoiced (fricative/noise)
-        // periods are passed through untouched, so consonants keep their timbre.
-        int median = medianVoicedLength(segs);
-        float factor = median > 0 ? (float) BASE_PERIOD / median : 1f;
-        if (factor < 1f) factor = 1f;          // only ever lower pitch, never raise
-        if (factor > 1.10f) factor = 1.10f;    // cap the shift so it stays subtle
+        // Pitch contour (ported from voicesynth root.47/48 + speak root.53):
+        // each VOICED period is resampled to a target period derived from a slewing
+        // prosody offset, so repeated syllables are NOT bit-identical (the cause of
+        // the robotic sound). The offset slews toward a ProsodyChange target by
+        // (diff>>4) (min 1), clamped to +-100; the target is PC[6] over the first
+        // half of the word then PC[1] over the second (a rise-fall accent, P1 ramp
+        // {0,50,10,20,50,160}). Target period = BASE_PERIOD - offset*PROSODY_SCALE
+        // (PROSODY_SCALE = P0[6]/100 = 0.62). Unvoiced periods pass through.
+        int nV = 0;
+        for (VoiceDatabase.Period p : segs) if (p.voiced) nV++;
+        int[] targetLen = new int[segs.size()];
+        int offset = 0, iv = 0;
+        for (int k = 0; k < segs.size(); k++) {
+            VoiceDatabase.Period p = segs.get(k);
+            if (!p.voiced) { targetLen[k] = p.samples.length; continue; }
+            int goal = (iv * 2 < nV) ? PC_PEAK : PC_END;   // PC[6] early, PC[1] late
+            int diff = goal - offset;
+            int step = diff == 0 ? 0 : (Math.abs(diff) >> 4);
+            if (step == 0) step = 1;
+            offset += diff >= 0 ? step : -step;
+            if (offset > 100) offset = 100; else if (offset < -100) offset = -100;
+            int t = Math.round(BASE_PERIOD - offset * PROSODY_SCALE);
+            if (t < 150) t = 150; else if (t > 280) t = 280;
+            targetLen[k] = t;
+            iv++;
+        }
 
         int total = 0;
-        for (VoiceDatabase.Period p : segs)
-            total += (p.voiced && factor > 1.001f)
-                    ? Math.round(p.samples.length * factor) : p.samples.length;
+        for (int len : targetLen) total += len;
         short[] pcm = new short[total];
         int o = 0;
         int seamIdx = 0;               // which entry of unitEndPeriod comes next
         List<Integer> seamSamples = new ArrayList<>();
         for (int k = 0; k < segs.size(); k++) {
             VoiceDatabase.Period p = segs.get(k);
-            if (p.voiced && factor > 1.001f) {
-                short[] r = lerpResample(p.samples, Math.round(p.samples.length * factor));
+            if (p.voiced && targetLen[k] != p.samples.length) {
+                short[] r = lerpResample(p.samples, targetLen[k]);
                 System.arraycopy(r, 0, pcm, o, r.length); o += r.length;
             } else {
                 System.arraycopy(p.samples, 0, pcm, o, p.samples.length); o += p.samples.length;
