@@ -349,8 +349,7 @@ public final class DiphoneSynth {
         for (int len : targetLen) total += len;
         short[] pcm = new short[total];
         int o = 0;
-        int seamIdx = 0;               // which entry of unitEndPeriod comes next
-        List<Integer> seamSamples = new ArrayList<>();
+        List<Integer> boundaries = new ArrayList<>();
         for (int k = 0; k < segs.size(); k++) {
             short[] p = segs.get(k);
             if (voiced.get(k) && targetLen[k] > p.length) {
@@ -363,17 +362,16 @@ public final class DiphoneSynth {
             } else {
                 System.arraycopy(p, 0, pcm, o, p.length); o += p.length;
             }
-            // record the sample offset at every unit seam (not the final end)
-            while (seamIdx < unitEndPeriod.size() && unitEndPeriod.get(seamIdx) == k + 1) {
-                if (k + 1 < segs.size()) seamSamples.add(o);
-                seamIdx++;
-            }
+            // root.45 runs at EVERY period boundary (called per-period from
+            // voicesynth root.48), not only at unit seams — record them all.
+            if (k + 1 < segs.size()) boundaries.add(o);
         }
-        // root.45 join smoothing: two passes of 2-tap neighbour averaging across each
-        // demi-syllable seam, widening the window (±4 then ±8), to remove the step
-        // discontinuity (buzz/click) the original avoids at unit joins.
-        for (int seam : seamSamples) smoothSeam(pcm, seam);
-        applyFades(pcm, 48);
+        // root.45 join smoothing: two passes of 2-tap neighbour averaging across the
+        // boundary (window ±4 then ±8). Applied at every period join — this removes
+        // the small kink left by each extend-ramp, which otherwise buzzes through
+        // sustained vowels (count 21/23 = many extended periods). The original has no
+        // amplitude fades, so we don't add any.
+        for (int seam : boundaries) smoothSeam(pcm, seam);
         return pcm;
     }
 
