@@ -88,14 +88,13 @@ public final class DiphoneSynth {
         }
     }
 
-    /** The DB long-vowel char for a long-vowel phoneme, or 0 if not a long vowel
-     *  with a recorded long-vowel CV unit. ā=0x07 (U+0107), ō=0xf3, ī=0xe1 (these
-     *  have full CV onset coverage). uU/eA have NO long CV units in this voice, so
-     *  they are not upgraded (stay short via phonemeChar). */
+    /** The DB long-vowel char for a long-vowel phoneme, or 0 if not upgraded.
+     *  Only the genuine cp1257 long vowels render cleanly: ī=0xe1 (verified good)
+     *  and ō=0xf3. Long a's only DB char (U+0107, low byte 0x07) plays as garbled
+     *  audio, and long u/e have no CV units, so those stay short via phonemeChar. */
     private static char longVowelChar(String ph) {
         String base = ph.endsWith("'") ? ph.substring(0, ph.length() - 1) : ph;
         switch (base) {
-            case "aA": case "Aa": return (char) 0x07;   // long a (ā)
             case "oO": case "Oo": return (char) 0xf3;   // long o (ó)
             case "iI":            return (char) 0xe1;   // long i (ī) — y/į
             default: return 0;
@@ -120,7 +119,7 @@ public final class DiphoneSynth {
     /** Whether a diphone-name char is a vowel (short a e i o u or long á ė ó). */
     private static boolean isVowelChar(char c) {
         return c=='a'||c=='e'||c=='i'||c=='o'||c=='u'
-            || c==(char)0xe1 || c==(char)0xeb || c==(char)0xf3 || c==(char)0x07;
+            || c==(char)0xe1 || c==(char)0xeb || c==(char)0xf3;
     }
 
     /**
