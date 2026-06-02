@@ -172,8 +172,10 @@ public final class DiphoneSynth {
                 if (e != null && i + 1 < s.length()) consumed = 2;
             }
             if (e != null) {
-                List<short[]> ps = smoothVoiced(db.unitTypedPeriods(e));
-                if (!ps.isEmpty()) segs.add(concatPeriodsSmooth(ps, 12));
+                // The original engine (proto8) simply appends each period's samples
+                // to the output buffer — no inter-unit crossfade, no amplitude
+                // leveling, no resampling. Concatenate the unit's periods directly.
+                for (short[] p : db.unitPeriods(e)) segs.add(p);
             }
             if (isVowelChar(c)) prevVowel = c;
             else if (consumed == 2) prevVowel = s.charAt(i + 1);
@@ -181,10 +183,13 @@ public final class DiphoneSynth {
         }
         if (segs.isEmpty()) return new short[0];
 
-        // Smooth amplitude across unit joins so neighbouring units meet at a common
-        // level (units have different loudness), then crossfade at the joins.
-        levelJoins(segs);
-        short[] pcm = overlapAdd(segs, 110);
+        // Concatenate all periods end-to-end (as the original does), with only a
+        // tiny click guard at period seams to avoid step discontinuities.
+        int total = 0;
+        for (short[] p : segs) total += p.length;
+        short[] pcm = new short[total];
+        int o = 0;
+        for (short[] p : segs) { System.arraycopy(p, 0, pcm, o, p.length); o += p.length; }
         applyFades(pcm, 48);
         return pcm;
     }
