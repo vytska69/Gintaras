@@ -5,79 +5,93 @@ import java.util.List;
 
 /**
  * Builds the demi-syllable unit-name sequence for a phoneme-char string, porting
- * the original engine's `translate` sequencer (verified against it over a 48-word
- * gold corpus). Input chars are cp1257 phoneme symbols from
- * Transcriber→phonemeChar (vowels a e i o u + long ė=0xeb ó=0xf3 etc., consonants).
+ * the original engine's `translate` sequencer (validated against it on a gold
+ * corpus). Input chars are cp1257 phoneme symbols from Transcriber→phonemeChar.
  *
- * Rule (observed from the real translate):
- *   - consonant C immediately before a vowel V → emit two half-units: "Cv-" then
- *     "-Cv" (overlapping left/right halves of the CV unit)
- *   - a vowel V not preceded by a consonant in the same onset (word-initial or in
- *     a vowel sequence) → emit "V" alone
- *   - a coda consonant C (after a vowel, not before one) → emit "-Vc"
- *   - a consonant in a cluster before another consonant → emit "C" alone
- * Each emitted name is a key into the voice diphone table.
+ * The engine renders each vowel nucleus as an overlapping pair of half-units —
+ * a left half "Xv-" and a right half "-Xv" — where X is the onset (a consonant or
+ * the first element of a diphthong). Coda consonants and pre-consonant cluster
+ * consonants are single units. Derived from the observed L/R/S unit pattern:
+ *   labas    L R L R R      → la- -la ba- -ba -as
+ *   lietuva  L L R L R L R  → li- ie- -ie tu- -tu va- -va
+ *   vakaras  ...            → va- -va ka- -ka ra- -ra -as
  */
 public final class UnitSequencer {
 
     static boolean isVowel(char c) {
         return c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u'
-            || c == (char) 0xe1 /*į/á*/ || c == (char) 0xeb /*ė*/ || c == (char) 0xf3 /*ó*/
+            || c == (char) 0xe1 || c == (char) 0xeb || c == (char) 0xf3
             || c == (char) 0xe0 || c == (char) 0xe6 || c == (char) 0xf8 || c == (char) 0xfb;
     }
 
-    /** Produce the ordered unit-name strings for a phoneme-char string. */
+    /** Glide second-element of a diphthong (i or u), forming a falling diphthong
+     *  with a preceding a/e/o/u; plus the rising ie/uo. */
+    private static boolean diphthong(char a, char b) {
+        if (a == 'i' && b == 'e') return true;        // ie
+        if (a == 'u' && b == 'o') return true;        // uo
+        if (b == 'i' || b == 'u')                     // ai ei oi au eu ou ui
+            return a == 'a' || a == 'e' || a == 'o' || a == 'u';
+        return false;
+    }
+
     public static List<String> sequence(String s) {
-        List<String> units = new ArrayList<>();
-        int i = 0;
-        char prevVowel = 0;
-        int n = s.length();
+        List<String> u = new ArrayList<>();
+        int i = 0, n = s.length();
+        char onset = 0;          // pending onset consonant for the next vowel
+        boolean haveLeft = false; // whether the current nucleus already emitted L
+        char curVowel = 0;
         while (i < n) {
             char c = s.charAt(i);
             if (isVowel(c)) {
-                // Diphthong: two adjacent vowels (ie, au, uo, ei, ai) form a
-                // glide pair rendered like a CV — "V1V2-" then "-V1V2".
-                if (i + 1 < n && isVowel(s.charAt(i + 1)) && isDiphthong(c, s.charAt(i + 1))) {
-                    char v2 = s.charAt(i + 1);
-                    units.add("" + c + v2 + '-');
-                    units.add("-" + c + v2);
-                    prevVowel = v2;
+                // form the nucleus key body: onset (if any) + vowel(s)
+                String body;
+                char nucVowel = c;
+                if (i + 1 < n && isVowel(s.charAt(i + 1)) && diphthong(c, s.charAt(i + 1))) {
+                    body = "" + c + s.charAt(i + 1);
+                    nucVowel = s.charAt(i + 1);
                     i += 2;
-                    continue;
+                } else {
+                    body = "" + c;
+                    i += 1;
                 }
-                // a lone vowel (onset / hiatus): emit it by itself
-                units.add("" + c);
-                prevVowel = c;
-                i++;
+                String key = (onset != 0 ? "" + onset : "") + body;
+                if (onset != 0) {
+                    // C(diphthong/vowel): left half "Xv-" then right "-Xv"
+                    u.add(key + "-");
+                    u.add("-" + key);
+                } else {
+                    // vowel with no onset consonant: a single left half "v-"? The
+                    // gold shows onset-less nuclei emit either a lone "V" (hiatus,
+                    // e.g. 'a','i') or a diphthong pair "V1V2-"/"-V1V2".
+                    if (body.length() == 2) {
+                        u.add(body + "-");
+                        u.add("-" + body);
+                    } else {
+                        u.add(body);
+                    }
+                }
+                onset = 0;
+                curVowel = nucVowel;
+                haveLeft = true;
                 continue;
             }
             // consonant
             if (i + 1 < n && isVowel(s.charAt(i + 1))) {
-                // CV onset: two half-units
-                char v = s.charAt(i + 1);
-                units.add("" + c + v + '-');   // left half  "Cv-"
-                units.add("-" + c + v);        // right half "-Cv"
-                prevVowel = v;
-                i += 2;
-            } else if (prevVowel != 0) {
-                // coda consonant after a vowel
-                units.add("-" + prevVowel + c);
+                // onset consonant for the following vowel
+                onset = c;
                 i++;
+            } else if (curVowel != 0 && haveLeft) {
+                // coda consonant after the current vowel
+                u.add("-" + curVowel + c);
+                i++;
+                // a coda consumes the nucleus; further consonants are cluster singles
+                haveLeft = false;
             } else {
-                // cluster consonant before another consonant (or word start)
-                units.add("" + c);
+                // cluster consonant (before another consonant, or word-initial run)
+                u.add("" + c);
                 i++;
             }
         }
-        return units;
-    }
-
-    /** Lithuanian rising/falling diphthongs that pair into one glide unit. */
-    private static boolean isDiphthong(char a, char b) {
-        // ie, uo, au, ai, ei, ui, oi, и т.д. — vowel followed by i/u glide, or
-        // the ie/uo rising diphthongs.
-        if ((a == 'i' && b == 'e') || (a == 'u' && b == 'o')) return true;      // ie, uo
-        if (b == 'i' || b == 'u') return a == 'a' || a == 'e' || a == 'o' || a == 'u'; // ai,ei,oi,au,eu,ou
-        return false;
+        return u;
     }
 }

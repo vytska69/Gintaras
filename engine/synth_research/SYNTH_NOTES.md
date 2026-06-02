@@ -473,3 +473,21 @@ the Java port of the demi-syllable sequencer. The rule (verified across 48 words
 CV→'Cv-' '-Cv'; initial/hiatus V→'V'; coda C→'-Vc'; cluster C→'C'; diphthongs
 (ie,au,uo,ei,ai) handled as VV pairs. Next: port the sequencer to Java, validate
 vs gold, wire into DiphoneSynth, then add prosody (base pitch 220 + stress).
+
+## UnitSequencer port status + the pragmatic path to 100%
+Ported the demi-syllable sequencer to Java (UnitSequencer). Plain CVCVC words match
+the gold 100% (20/48 overall, all failures are diphthong/cluster words). The exact
+diphthong behaviour is governed by translate's LPeg grammar, which slices the
+phoneme string with sub(s, pos-4, pos-3), sub(s, pos-6, pos-3) windows — a
+positional scheme, not simple rules, so hand-rules plateau at ~42%.
+
+Two ways to reach 100% on-device:
+(A) Port translate's LPeg grammar to Java (a small grammar, ~9 protos, but needs an
+    LPeg-style matcher). Exact, but sizeable.
+(B) PRE-COMPUTE: run the real translate offline over a large Lithuanian word list
+    and ship a word→unit-sequence table in the APK; fall back to the rule-based
+    sequencer for OOV words. Pragmatic, gets common words exactly right now.
+
+Given diminishing returns on hand-rules, (B) is the fastest path to a good-sounding
+device build, with (A) as the long-term clean solution. The unit DATA and the
+synthesis (direct period concat) are done; only the sequencing precision remains.
