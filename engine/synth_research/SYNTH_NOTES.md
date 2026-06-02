@@ -491,3 +491,19 @@ Two ways to reach 100% on-device:
 Given diminishing returns on hand-rules, (B) is the fastest path to a good-sounding
 device build, with (A) as the long-term clean solution. The unit DATA and the
 synthesis (direct period concat) are done; only the sequencing precision remains.
+
+## Diphthong sequencing: hand-rules can't match it — needs the lpeg grammar
+Tested CV+coda + several diphthong hypotheses against the 48-word gold: plain words
+match (19-20/48), but diphthongs never do with hand-rules. The gold shows the
+engine's segmentation is genuinely data-driven via translate's lpeg match-time
+captures (it builds candidate keys from sub() windows and checks VOICES), e.g.
+lietuva 'lie' → li- ie- -ie (the 'i' is shared between li and ie). No fixed rule
+reproduces this; 'y' and č/š/ž also break naive rules.
+
+DECISION: the on-device synthesis keeps the CV+coda direct-concat (restored 4595d3d)
+which sounds best with Lithuanian letters. Exact diphthong sequencing requires
+porting translate's lpeg grammar (a bounded but real task) or shipping a
+precomputed word→sequence table generated offline by the real translate. The unit
+data, transcription (100%), and period-concat playback are solid; diphthong
+sequencing + prosody (pitch/stress) are the two remaining quality items, both now
+fully characterised against the real engine.
