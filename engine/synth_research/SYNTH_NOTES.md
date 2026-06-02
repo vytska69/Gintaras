@@ -355,3 +355,23 @@ This covers each phoneme ONCE — no doubling:
 This is the real fix for the 'weird' speech: previous pairwise '-XY' selection
 doubled consonants/mismatched segments. Implement this CV+coda walker in
 DiphoneSynth, joining CV→coda and CV→CV at the shared vowel with a short crossfade.
+
+## BREAKTHROUGH: real unit keys are positional N…+…R (translate module), not -XY
+The user's suspicion was right: my whole -XY / CV+coda diphone model is wrong.
+The REAL unit selection is in the `translate` module (which I had been stubbing
+all along!). translate.translate builds unit keys of the form:
+   "N" + sub(input, a, b) + "+" + n + "R"   and   "N" + ... + "+" + n
+i.e. the units named "N10+3R", "N3+8R" etc. seen in the .dta are POSITIONAL units
+keyed by (phoneme-substring, position-offset, R-flag) — NOT simple phoneme pairs.
+
+translate exports: translate(), numbers(). proto8 is the unit-key builder: it
+walks the phoneme string in steps of 2, takes sub(s, lo, hi) windows, and
+concatenates with "N"…"+"…"R" to form the dictionary key. So the diphone dict is
+indexed by a positional/context scheme the engine computes in translate, then
+voicesynth.loadphrase looks those keys up in VOICES.
+
+IMPLICATION: to match the original I must run/port translate.translate to generate
+the correct unit keys, instead of guessing -XY. translate.translate currently
+errors ('index upvalue nil') because it needs initialisation (VOICES/context set by
+loadvoice/loadphrase). Next: initialise translate's upvalues (or port proto8's
+key-building) and feed our phonemes to get the REAL unit sequence.
