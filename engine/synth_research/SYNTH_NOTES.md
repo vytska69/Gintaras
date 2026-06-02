@@ -375,3 +375,29 @@ the correct unit keys, instead of guessing -XY. translate.translate currently
 errors ('index upvalue nil') because it needs initialisation (VOICES/context set by
 loadvoice/loadphrase). Next: initialise translate's upvalues (or port proto8's
 key-building) and feed our phonemes to get the REAL unit sequence.
+
+## SOLVED for real: the unit scheme is DEMI-DIPHONE (half-units), from translate
+Ran the REAL translate.translate(utf16(word), nil, voiceTable) with lpeg — it works
+and returns the true unit sequence. The scheme is DEMI-DIPHONE (each phone split
+into a left half 'X-' and right half '-X'), with vowels/onsets handled specially:
+
+  labas    = la- -la  ba- -ba  -as
+  du       = du- -du
+  saule    = sa- au  le- -le
+  gintaras = gi- -gi  -in  ta- -ta  ra- -ra  -as
+  akis     = a  ki- -ki  -is
+  vienas   = vi- ie- -ie  na- -na  -as
+  mama     = ma- -ma  ma- -ma
+  sruoga   = s  r  u-  uo- -uo  ga- -ga
+
+Pattern (observed): a CV syllable "C V" emits  Cv-  -Cv  (left+right halves of the
+CV unit). A coda/initial vowel emits a single '-Vc' or bare 'V'. Consonant clusters
+emit bare consonants. All these units EXIST in .dta (la-,-la,ba-,-ba,-as,du-,-du,
+sa-,au,le-,-le all found). So my '-XY pair' and 'CV+coda' models were both wrong;
+the engine uses overlapping half-units.
+
+PLAN: port translate's unit-sequencing (it's lpeg-based UTF-16 pattern matching).
+Either (a) reimplement the demi-diphone splitter from these observed patterns, or
+(b) run the actual translate offline to dump sequences for a wordlist. (a) is the
+on-device path. The units exist; correct sequencing is the remaining work and is
+now grounded in the real engine output, not guesses.
