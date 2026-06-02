@@ -134,83 +134,57 @@ public final class DiphoneSynth {
         }
         String s = seq.toString();
 
-        // Resolve each adjacent-pair "-XY" unit to its list of pitch periods.
-        // Smooth ONLY voiced periods toward a steady pitch (proto7 DSP: voiced
-        // periods are pitch-interpolated, unvoiced consonants are left untouched).
-        // We interpolate each voiced period to the unit's MEAN voiced-period length
-        // — this steadies the pitch within a vowel (removing the per-period jitter
-        // that sounded rough) without the global monotone that the constant-220
-        // resample caused.
-        List<List<short[]>> units = new ArrayList<>();
-        for (int i = 0; i + 1 < s.length(); i++) {
-            VoiceDatabase.Entry e = lookup("-" + s.substring(i, i + 2));
-            if (e == null) e = lookupFlexible(s.charAt(i), s.charAt(i + 1));
-            units.add(e != null ? smoothVoiced(db.unitTypedPeriods(e)) : null);
-        }
-
-        // Build per-unit waveforms by concatenating that unit's periods DIRECTLY
-        // (periods within a unit are consecutive recordings → already phase-
-        // continuous; overlapping them would shorten/distort and raise pitch).
-        // Each unit "-X Y" shares phoneme Y with the next; drop each following
-        // unit's first-half periods (the repeated shared phoneme).
-        // Each '-XY' unit spans X→Y. Adjacent units '-XY' and '-YZ' share phoneme
-        // Y: '-XY' ends in Y's onset, '-YZ' begins in Y's tail. To render Y once
-        // without truncating vowels, drop only a SMALL overlap (a couple of
-        // periods) from the front of each following unit, not its whole first
-        // half — that earlier halving made vowels too short.
-        // Concatenate each unit's stored periods DIRECTLY (no resampling — the
-        // stored periods already carry the correct waveform incl. consonants,
-        // which are NOT pitch-periodic and must not be stretched). Drop each
-        // following unit's repeated onset (~2 periods) so the shared phoneme
-        // isn't doubled.
+        // Select units by walking the phoneme-char string (the decoded rule):
+        //   - consonant followed by a vowel  → CV unit "-"+C+V (consumes both)
+        //   - coda consonant (after a vowel, not before one) → "-"+prevVowel+C
+        //     coda unit (consumes the consonant only)
+        //   - a vowel with no preceding consonant (word-initial / hiatus) →
+        //     stand-alone via its own onset unit "-"+V if present
+        // This renders each phoneme exactly once: labas = -la -ba -as(coda),
+        // gintaras = -gi -in(coda) -ta -ra -as(coda). Each unit's voiced periods
+        // are pitch-steadied (proto7), unvoiced left as recorded.
         List<short[]> segs = new ArrayList<>();
-        boolean first = true;
-        for (int ui = 0; ui < units.size(); ui++) {
-            List<short[]> u = units.get(ui);
-            if (u == null || u.isEmpty()) continue;
-            List<short[]> use;
-            if (first) {
-                use = new ArrayList<>(u);
-                // Strengthen/lengthen the initial consonant: the first unit "-CV"
-                // packs the onset consonant into its first ~2 periods, too short
-                // and quiet (heard as a weak/absent 'l'). Repeat the very first
-                // period so the onset is held and clearly audible.
-                if (s.length() >= 1 && !isVowelChar(s.charAt(0)) && !u.isEmpty()) {
-                    use.add(0, u.get(0));
+        int i = 0;
+        char prevVowel = 0;
+        while (i < s.length()) {
+            char c = s.charAt(i);
+            VoiceDatabase.Entry e = null;
+            int consumed = 1;
+            if (!isVowelChar(c) && i + 1 < s.length() && isVowelChar(s.charAt(i + 1))) {
+                // CV onset unit
+                e = lookup("-" + c + s.charAt(i + 1));
+                if (e == null) e = lookupFlexible(c, s.charAt(i + 1));
+                if (e != null) { consumed = 2; prevVowel = s.charAt(i + 1); }
+            }
+            if (e == null && !isVowelChar(c) && prevVowel != 0) {
+                // coda consonant after the previous vowel
+                e = lookup("-" + prevVowel + c);
+                if (e == null) e = lookupFlexible(prevVowel, c);
+            }
+            if (e == null && isVowelChar(c)) {
+                // vowel not consumed by a CV (word-initial / after vowel): onset "-V?"
+                // fall back to a CV-style unit beginning with this vowel
+                e = lookup("-" + c + (i + 1 < s.length() ? "" + s.charAt(i + 1) : ""));
+                if (e == null) {
+                    // try any "-V x" unit; else skip (carried by neighbour)
+                    prevVowel = c;
                 }
-                first = false;
-            } else {
-                int drop = Math.min(2, u.size() - 1);
-                use = new ArrayList<>(u.subList(drop, u.size()));
+                if (e != null && i + 1 < s.length()) consumed = 2;
             }
-            // Lengthen vowels: a unit "-XY" ending in a vowel Y carries that vowel
-            // in its final periods. Real speech holds vowels longer than the short
-            // recorded diphone, so repeat the last (steady vowel) period a few
-            // times to give the vowel natural duration. The last period before a
-            // word end gets held longest.
-            char endChar = s.charAt(ui + 1);
-            if (isVowelChar(endChar) && !use.isEmpty()) {
-                short[] lastP = use.get(use.size() - 1);
-                int repeats = (ui + 1 == s.length() - 1) ? 3 : 2; // hold final vowel longer
-                for (int r = 0; r < repeats; r++) use.add(lastP);
+            if (e != null) {
+                List<short[]> ps = smoothVoiced(db.unitTypedPeriods(e));
+                if (!ps.isEmpty()) segs.add(concatPeriodsSmooth(ps, 12));
             }
-            // Concatenate the unit's periods with a short crossfade at EACH period
-            // boundary. Periods start near 0 and may end near 0 too, so a hard
-            // concat creates a step (0→several-thousand) every period — heard as a
-            // crackle, especially on repeated vowel periods. A ~12-sample blend at
-            // each boundary removes the step without shortening (we overlap, not cut).
-            segs.add(concatPeriodsSmooth(use, 12));
+            if (isVowelChar(c)) prevVowel = c;
+            else if (consumed == 2) prevVowel = s.charAt(i + 1);
+            i += consumed;
         }
+        if (segs.isEmpty()) return new short[0];
 
-        // Smooth amplitude across unit joins. Each diphone unit has its own
-        // loudness; abrupt jumps at joins (e.g. -ab end ~7000 → -ba start ~30000)
-        // are heard as a 'chopped' delivery. Scale each segment's join region so
-        // neighbouring segments meet at a common amplitude.
+        // Smooth amplitude across unit joins so neighbouring units meet at a common
+        // level (units have different loudness), then crossfade at the joins.
         levelJoins(segs);
-
-        // Crossfade at unit joins (~5 ms) so the shared-phoneme handoff is smooth.
         short[] pcm = overlapAdd(segs, 110);
-
         applyFades(pcm, 48);
         return pcm;
     }
