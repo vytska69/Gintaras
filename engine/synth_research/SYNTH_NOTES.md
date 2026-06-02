@@ -419,3 +419,22 @@ If correct, the on-device path is to PORT translate's sequencing. Since translat
 is lpeg-based, the cleanest port may be a direct demi-diphone rule reproducing its
 output, validated against translate over a wordlist (like we did 100% for the
 grapheme→phoneme transcriber).
+
+## translate sequencing RULE fully derived (for Java port)
+Ran translate on many words; the rule is clean demi-syllable splitting:
+  - C V (consonant+vowel) → emit "Cv-" (left half) then "-Cv" (right half)
+      ta → ta- -ta ;  sa → sa- -sa ;  kava → ka- -ka va- -va
+  - word-initial / hiatus vowel V → emit "V" alone
+      as → a -as ;  aaa → a a a
+  - coda consonant after a vowel → emit "-Vc"
+      namas → na- -na ma- -ma -as
+  - consonant in a cluster before a consonant → emit "C" alone
+      ksa → k sa- -sa ;  tra → t ra- -ra
+So each CV is rendered by TWO overlapping half-units (left "Cv-", right "-Cv");
+vowels alone and codas/cluster-consonants are single units. The ė loss earlier was
+ONLY because my test words were ASCII ('saule' not 'saulė'); with cp1257 ė=0xeb the
+correct lė- /-lė units are selected.
+
+This is portable to Java and validatable against translate over a wordlist (as the
+transcriber hit 100%). PLAN: implement this demi-syllable sequencer in DiphoneSynth
+(replacing the wrong CV+coda single-unit selection), keep direct period concat.
