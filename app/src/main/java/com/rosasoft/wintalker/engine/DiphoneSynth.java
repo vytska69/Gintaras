@@ -26,13 +26,12 @@ public final class DiphoneSynth {
      *  steps them toward this base. */
     private static final int BASE_PERIOD = 220;
 
-    /** Prosody pitch scale = P0[6]/100 (voicesynth loadvoice). Maps the slewing
-     *  prosody offset (+-100) to a period adjustment in samples. */
-    private static final float PROSODY_SCALE = 0.62f;
-    /** P1.ProsodyChange = {0,50,10,20,50,160}: the slew targets root.47 selects —
-     *  PC[6]=160 over the first half of a word, PC[1]=0 over the second. */
-    private static final int PC_PEAK = 160;
-    private static final int PC_END = 0;
+    /** P0.Prosody = P0[1]+P0[2] = 20 (voicesynth loadvoice root.43). */
+    private static final int PROSODY = 20;
+    /** P1.ProsodyChange = {0,50,10,20,50,160}: root.47 slews toward PC[6]=160 over
+     *  the first half of a word, then PC[3]=10 over the second. */
+    private static final int PC_EARLY = 160;   // PC[6]
+    private static final int PC_LATE = 10;     // PC[3]
 
     private final VoiceDatabase db;
     private final Map<String, VoiceDatabase.Entry> index;
@@ -209,30 +208,33 @@ public final class DiphoneSynth {
         }
         if (segs.isEmpty()) return new short[0];
 
-        // Pitch contour (ported from voicesynth root.47/48 + speak root.53):
-        // each VOICED period is resampled to a target period derived from a slewing
-        // prosody offset, so repeated syllables are NOT bit-identical (the cause of
-        // the robotic sound). The offset slews toward a ProsodyChange target by
-        // (diff>>4) (min 1), clamped to +-100; the target is PC[6] over the first
-        // half of the word then PC[1] over the second (a rise-fall accent, P1 ramp
-        // {0,50,10,20,50,160}). Target period = BASE_PERIOD - offset*PROSODY_SCALE
-        // (PROSODY_SCALE = P0[6]/100 = 0.62). Unvoiced periods pass through.
+        // Pitch contour — ported EXACTLY from the original voicesynth pitch
+        // accumulator (root.47) + DSP (root.48). Per voiced period the offset slews
+        // toward `slewTarget = -Prosody + PC/8`, where PC is the ProsodyChange entry
+        // PC[6]=160 over the first half of the word and PC[3]=10 over the second
+        // (P1 ramp {0,50,10,20,50,160}); Prosody = P0.Prosody = 20. The slew step is
+        // (diff>>4)+1 when rising, -((-diff)>>4) (min -1) when falling, then floored
+        // and clamped to +-100. Target period = BASE_PERIOD + offset (root.48). This
+        // gives a subtle ~100-110 Hz contour so repeated syllables differ — the cure
+        // for the robotic 'mama'/'namas' — without the earlier exaggerated swing.
         int nV = 0;
         for (VoiceDatabase.Period p : segs) if (p.voiced) nV++;
         int[] targetLen = new int[segs.size()];
-        int offset = 0, iv = 0;
+        double offset = 0; int iv = 0;
         for (int k = 0; k < segs.size(); k++) {
             VoiceDatabase.Period p = segs.get(k);
             if (!p.voiced) { targetLen[k] = p.samples.length; continue; }
-            int goal = (iv * 2 < nV) ? PC_PEAK : PC_END;   // PC[6] early, PC[1] late
-            int diff = goal - offset;
-            int step = diff == 0 ? 0 : (Math.abs(diff) >> 4);
-            if (step == 0) step = 1;
-            offset += diff >= 0 ? step : -step;
+            int pc = (iv * 2 < nV) ? PC_EARLY : PC_LATE;       // PC[6] early, PC[3] late
+            double slewTarget = -PROSODY + pc / 8.0;           // 0.0 early, -18.75 late
+            double diff = slewTarget - offset;
+            int step;
+            if (diff == 0) step = 0;
+            else if (diff > 0) step = ((int) diff >> 4) + 1;   // rshift truncates to int
+            else { step = -((int) (-diff) >> 4); if (step == 0) step = -1; }
+            offset = Math.floor(offset + step);
             if (offset > 100) offset = 100; else if (offset < -100) offset = -100;
-            int t = Math.round(BASE_PERIOD - offset * PROSODY_SCALE);
-            if (t > 280) t = 280;
-            // root.48 is EXTEND-ONLY: it never compresses a recorded period, it only
+            int t = (int) (BASE_PERIOD + offset);
+            // root.48 is EXTEND-ONLY: it never compresses a recorded period, only
             // pads it out to the target pitch. So the recorded length is the floor.
             targetLen[k] = Math.max(p.samples.length, t);
             iv++;
