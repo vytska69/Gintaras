@@ -38,7 +38,7 @@ public final class CandidateSequencer {
 
     static boolean isVowel(char c) {
         return c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u'
-            || c == (char) 0xe1 || c == (char) 0xeb || c == (char) 0xf3
+            || c == (char) 0xe1 || c == (char) 0xeb || c == (char) 0xf3 || c == (char) 0x07
             || c == (char) 0xe0 || c == (char) 0xe6 || c == (char) 0xf8 || c == (char) 0xfb;
     }
 

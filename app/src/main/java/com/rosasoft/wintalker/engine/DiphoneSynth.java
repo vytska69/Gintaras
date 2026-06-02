@@ -88,10 +88,39 @@ public final class DiphoneSynth {
         }
     }
 
+    /** The DB long-vowel char for a long-vowel phoneme, or 0 if not a long vowel
+     *  with a recorded long-vowel CV unit. ā=0x07 (U+0107), ō=0xf3, ī=0xe1 (these
+     *  have full CV onset coverage). uU/eA have NO long CV units in this voice, so
+     *  they are not upgraded (stay short via phonemeChar). */
+    private static char longVowelChar(String ph) {
+        String base = ph.endsWith("'") ? ph.substring(0, ph.length() - 1) : ph;
+        switch (base) {
+            case "aA": case "Aa": return (char) 0x07;   // long a (ā)
+            case "oO": case "Oo": return (char) 0xf3;   // long o (ó)
+            case "iI":            return (char) 0xe1;   // long i (ī) — y/į
+            default: return 0;
+        }
+    }
+
+    /** Whether a phoneme is a glide (J/W) or any vowel — i.e. it forms a diphthong
+     *  with an adjacent long vowel, in which case the short vowel char is used. */
+    private static boolean isGlideOrVowel(String ph) {
+        String b = ph.endsWith("'") ? ph.substring(0, ph.length() - 1) : ph;
+        switch (b) {
+            case "J": case "W":
+            case "a": case "e": case "i": case "o": case "u":
+            case "aA": case "Aa": case "aa": case "eA": case "Ea": case "ea":
+            case "eE": case "Ee": case "ee": case "iI": case "ii":
+            case "oO": case "Oo": case "oo": case "uU": case "uu":
+                return true;
+            default: return false;
+        }
+    }
+
     /** Whether a diphone-name char is a vowel (short a e i o u or long á ė ó). */
     private static boolean isVowelChar(char c) {
         return c=='a'||c=='e'||c=='i'||c=='o'||c=='u'
-            || c==(char)0xe1 || c==(char)0xeb || c==(char)0xf3;
+            || c==(char)0xe1 || c==(char)0xeb || c==(char)0xf3 || c==(char)0x07;
     }
 
     /**
@@ -198,11 +227,25 @@ public final class DiphoneSynth {
      * unit for every adjacent phoneme pair and concatenate their waveforms.
      */
     public short[] synthesize(String[] phonemes) {
-        // phoneme chars (skip the '_' boundary tokens; the '-' is added per unit)
+        // Build the diphone-name char string. Long vowels (aA, oO, iI) map to the
+        // DB's recorded LONG-vowel chars (ā=0x07, ō=0xf3, ī=0xe1) when they are a
+        // MONOPHTHONG, but to the short char inside a diphthong (au, uo, ie, …),
+        // because the DB's diphthong units use short vowel chars. A vowel is part of
+        // a diphthong when it is adjacent to a glide (J/W) or another vowel. This is
+        // why 'y' (iI, always a monophthong) was wrongly short ("migtukas").
+        List<String> ps = new ArrayList<>();
+        for (String p : phonemes) if (!p.equals("_")) ps.add(p);
         StringBuilder seq = new StringBuilder();
-        for (String p : phonemes) {
-            if (p.equals("_")) continue;
-            seq.append(phonemeChar(p));
+        for (int i = 0; i < ps.size(); i++) {
+            String p = ps.get(i);
+            char lng = longVowelChar(p);
+            if (lng != 0) {
+                boolean diph = (i > 0 && isGlideOrVowel(ps.get(i - 1)))
+                        || (i + 1 < ps.size() && isGlideOrVowel(ps.get(i + 1)));
+                seq.append(diph ? phonemeChar(p) : lng);
+            } else {
+                seq.append(phonemeChar(p));
+            }
         }
         String s = seq.toString();
 
