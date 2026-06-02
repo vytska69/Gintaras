@@ -2,3 +2,7 @@ _work/
 *.zip
 build/
 .gradle/
+
+# Python bytecode cache (from analysis tooling)
+__pycache__/
+*.pyc
