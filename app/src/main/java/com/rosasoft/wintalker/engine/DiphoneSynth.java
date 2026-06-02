@@ -106,6 +106,19 @@ public final class DiphoneSynth {
         return out;
     }
 
+    /** Smooth a unit seam in place, mirroring the original's join filter (root.45):
+     *  two passes of 2-tap neighbour averaging centred on the seam, widening the
+     *  window ±4 then ±8 samples. This rounds off the step discontinuity between
+     *  concatenated demi-syllables without touching the unit interiors. */
+    private static void smoothSeam(short[] pcm, int seam) {
+        for (int pass = 1; pass <= 2; pass++) {
+            int w = 4 * pass;
+            int lo = Math.max(1, seam - w), hi = Math.min(pcm.length - 1, seam + w);
+            for (int i = lo; i < hi; i++)
+                pcm[i] = (short) ((pcm[i] + pcm[i + 1]) / 2);
+        }
+    }
+
     /** Median sample-length of the voiced periods in a sequence (0 if none). */
     private static int medianVoicedLength(List<VoiceDatabase.Period> ps) {
         List<Integer> v = new ArrayList<>();
@@ -156,10 +169,17 @@ public final class DiphoneSynth {
         // the original proto7 pitch step (voiced periods only) below.
         if (sequencer == null) sequencer = new CandidateSequencer(db);
         List<VoiceDatabase.Period> segs = new ArrayList<>();
+        // Mark, in period units, where each demi-syllable unit ends — these are the
+        // seams the original smooths across (root.45 join filter), as opposed to the
+        // joins *inside* a unit (consecutive recorded periods, already continuous).
+        List<Integer> unitEndPeriod = new ArrayList<>();
         for (String name : sequencer.sequence(s)) {
             VoiceDatabase.Entry e = lookup(name);
             if (e == null) e = lookupRelaxed(name);
-            if (e != null) segs.addAll(db.unitTypedPeriods(e));
+            if (e != null) {
+                segs.addAll(db.unitTypedPeriods(e));
+                unitEndPeriod.add(segs.size());
+            }
         }
         if (segs.isEmpty()) return new short[0];
 
@@ -180,14 +200,26 @@ public final class DiphoneSynth {
                     ? Math.round(p.samples.length * factor) : p.samples.length;
         short[] pcm = new short[total];
         int o = 0;
-        for (VoiceDatabase.Period p : segs) {
+        int seamIdx = 0;               // which entry of unitEndPeriod comes next
+        List<Integer> seamSamples = new ArrayList<>();
+        for (int k = 0; k < segs.size(); k++) {
+            VoiceDatabase.Period p = segs.get(k);
             if (p.voiced && factor > 1.001f) {
                 short[] r = lerpResample(p.samples, Math.round(p.samples.length * factor));
                 System.arraycopy(r, 0, pcm, o, r.length); o += r.length;
             } else {
                 System.arraycopy(p.samples, 0, pcm, o, p.samples.length); o += p.samples.length;
             }
+            // record the sample offset at every unit seam (not the final end)
+            while (seamIdx < unitEndPeriod.size() && unitEndPeriod.get(seamIdx) == k + 1) {
+                if (k + 1 < segs.size()) seamSamples.add(o);
+                seamIdx++;
+            }
         }
+        // root.45 join smoothing: two passes of 2-tap neighbour averaging across each
+        // demi-syllable seam, widening the window (±4 then ±8), to remove the step
+        // discontinuity (buzz/click) the original avoids at unit joins.
+        for (int seam : seamSamples) smoothSeam(pcm, seam);
         applyFades(pcm, 48);
         return pcm;
     }
