@@ -98,16 +98,29 @@ public class TtsService extends TextToSpeechService {
         // Expand digits to Lithuanian words so numbers are spoken (e.g. "12" →
         // "dvylika"), then synthesize each whitespace-separated word.
         text = NumberExpander.expand(text);
-        short[] pause = new short[(int) (0.18 * SAMPLE_RATE)];
-        for (String word : text.split("\\s+")) {
+        // Pause model ported from the original (voicesynth root.53 + root.50):
+        // between words/clauses a tiny P3/P2.Silence=20 ≈ 0.02 s; at sentence end
+        // (. ! ? ; :) and at the very end of the utterance the P4.Silence=300 ≈
+        // 0.30 s. The original does NOT insert a big gap after every word — that
+        // was our bug (fixed 0.18 s ≈ 9× too long).
+        short[] wordPause = new short[(int) (0.02 * SAMPLE_RATE)];   // P3/P2 = 20
+        short[] sentPause = new short[(int) (0.30 * SAMPLE_RATE)];   // P4 = 300
+        String[] words = text.split("\\s+");
+        for (int wi = 0; wi < words.length; wi++) {
             if (stop) break;
+            String word = words[wi];
             if (word.isEmpty()) continue;
             int[] w = Transcriber.normalise(word);
             if (w.length == 0) continue;
             List<String> phonemes = Transcriber.transcribe(w, w.length);
             short[] pcm = synth.synthesize(phonemes.toArray(new String[0]));
             if (!writePcm(callback, pcm)) break;
-            writePcm(callback, pause);
+            // sentence-final punctuation (kept on the raw token) → long pause;
+            // last word of the utterance → long trailing pause; else tiny gap.
+            char last = word.charAt(word.length() - 1);
+            boolean sentenceEnd = ".!?;:".indexOf(last) >= 0;
+            boolean isLast = wi == words.length - 1;
+            if (!writePcm(callback, (sentenceEnd || isLast) ? sentPause : wordPause)) break;
         }
         callback.done();
     }
