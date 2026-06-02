@@ -454,3 +454,22 @@ So the remaining work is the PROSODY layer on top of the now-correct unit sequen
 1. resample voiced periods to the base pitch (220) — fixes the slightly-low pitch.
 2. apply a stress contour (raise pitch/amplitude on the stressed syllable).
 This is the last layer; the hard part (correct units) is solved.
+
+## Full chain established + cp1257 encoding pinned (the ė/č fix)
+The complete pipeline is: text → our Transcriber (100%) → phonemes →
+phonemeChar() → cp1257 diphone-char string → translate's demi-syllable sequencer →
+unit keys → sample blocks → PCM (+ prosody).
+
+translate operates on the PHONEME/letter chars (č→'c', ė→0xeb etc.), not raw
+diacritics: 'aciu' works ('a ci- -ci u') while raw 'ačiū' with 0xe8 doesn't —
+because the phoneme for č is 'c'(ts) in the diphone alphabet. So feeding the
+transcriber's phonemeChar output is correct. Earlier ė loss was an ASCII test-word
+bug; correct cp1257 (ė=0xeb) selects lė-/-lė.
+
+Correct cp1257 codes: ą e0 č e8 ę e6 ė eb į e1 š f0 ų f8 ū fb ž fe.
+
+Gold corpus saved (gold_translate_seq.tsv, 48 words) as the validation target for
+the Java port of the demi-syllable sequencer. The rule (verified across 48 words):
+CV→'Cv-' '-Cv'; initial/hiatus V→'V'; coda C→'-Vc'; cluster C→'C'; diphthongs
+(ie,au,uo,ei,ai) handled as VV pairs. Next: port the sequencer to Java, validate
+vs gold, wire into DiphoneSynth, then add prosody (base pitch 220 + stress).
