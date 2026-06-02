@@ -136,6 +136,24 @@ public final class DiphoneSynth {
         return v.get(v.size() / 2);
     }
 
+    /** Extend a voiced period to `target` samples by appending a linear bridge from
+     *  the period's last sample to `next` (the following period's first sample),
+     *  exactly as voicesynth root.48 does: out[L+j] = last + (j+1)*(next-last)/(span+1).
+     *  The recorded samples are copied verbatim, so the period's spectrum (timbre)
+     *  is preserved — only the pitch period is lengthened. Never compresses. */
+    private static short[] extendPeriod(short[] s, int target, short next) {
+        int L = s.length;
+        if (L >= target || L == 0) return s;
+        int span = target - L;
+        short[] out = new short[target];
+        System.arraycopy(s, 0, out, 0, L);
+        int last = s[L - 1];
+        int delta = next - last;
+        for (int j = 0; j < span; j++)
+            out[L + j] = (short) (last + (long) (j + 1) * delta / (span + 1));
+        return out;
+    }
+
     /** Linear-interpolate a period to `len` samples (proto7's voiced resample). */
     private static short[] lerpResample(short[] src, int len) {
         short[] dst = new short[len];
@@ -213,8 +231,10 @@ public final class DiphoneSynth {
             offset += diff >= 0 ? step : -step;
             if (offset > 100) offset = 100; else if (offset < -100) offset = -100;
             int t = Math.round(BASE_PERIOD - offset * PROSODY_SCALE);
-            if (t < 150) t = 150; else if (t > 280) t = 280;
-            targetLen[k] = t;
+            if (t > 280) t = 280;
+            // root.48 is EXTEND-ONLY: it never compresses a recorded period, it only
+            // pads it out to the target pitch. So the recorded length is the floor.
+            targetLen[k] = Math.max(p.samples.length, t);
             iv++;
         }
 
@@ -226,8 +246,12 @@ public final class DiphoneSynth {
         List<Integer> seamSamples = new ArrayList<>();
         for (int k = 0; k < segs.size(); k++) {
             VoiceDatabase.Period p = segs.get(k);
-            if (p.voiced && targetLen[k] != p.samples.length) {
-                short[] r = lerpResample(p.samples, targetLen[k]);
+            if (p.voiced && targetLen[k] > p.samples.length) {
+                // next period's first sample is the bridge target (root.48 src[0])
+                short next = (k + 1 < segs.size() && segs.get(k + 1).samples.length > 0)
+                        ? segs.get(k + 1).samples[0]
+                        : (p.samples.length > 0 ? p.samples[p.samples.length - 1] : 0);
+                short[] r = extendPeriod(p.samples, targetLen[k], next);
                 System.arraycopy(r, 0, pcm, o, r.length); o += r.length;
             } else {
                 System.arraycopy(p.samples, 0, pcm, o, p.samples.length); o += p.samples.length;
