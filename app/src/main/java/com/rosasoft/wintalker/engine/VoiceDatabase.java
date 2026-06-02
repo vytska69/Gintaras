@@ -170,11 +170,16 @@ public final class VoiceDatabase {
         return out;
     }
 
-    /** One pitch period plus its type bit (bit0 = voiced). */
+    /** One pitch period plus its type bit (bit0 = voiced) and its record `count`
+     *  (the number of pitch periods the original interpolates for this frame —
+     *  voicesynth root.49/root.52.5; count<=1 = a single frame). */
     public static final class Period {
         public final short[] samples;
         public final boolean voiced;
-        Period(short[] samples, boolean voiced) { this.samples = samples; this.voiced = voiced; }
+        public final int count;
+        Period(short[] samples, boolean voiced, int count) {
+            this.samples = samples; this.voiced = voiced; this.count = count;
+        }
     }
 
     /** A unit's periods carrying the voiced flag (typ&1), resolving aliases.
@@ -195,7 +200,7 @@ public final class VoiceDatabase {
         for (Record r : e.records)
             if (r.isNumeric()) {
                 SampleBlock b = blocks.get(r.numKey);
-                if (b != null) out.add(new Period(b.samples, (r.typ & 1) != 0));
+                if (b != null) out.add(new Period(b.samples, (r.typ & 1) != 0, r.count));
             }
         return out;
     }

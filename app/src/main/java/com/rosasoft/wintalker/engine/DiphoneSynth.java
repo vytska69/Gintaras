@@ -135,6 +135,22 @@ public final class DiphoneSynth {
         return v.get(v.size() / 2);
     }
 
+    /** Linear frame interpolation, exactly per voicesynth root.44: the j-th of `n`
+     *  frames between data and data2 is out[i] = ((n-1-j)*data[i] + j*data2[i])/(n-1),
+     *  over min(len(data),len(data2)) samples rounded down to even. j=0 -> data,
+     *  j=n-1 -> data2. Used to render a count>1 voiced frame as `count` periods. */
+    private static short[] interpFrame(short[] data, short[] data2, int n, int j) {
+        int len = Math.min(data.length, data2.length);
+        len &= ~1;                              // floor to even (root.44)
+        if (len == 0) return data;
+        if (n <= 1) return java.util.Arrays.copyOf(data, len);
+        int w0 = (n - 1) - j, w1 = j, denom = n - 1;
+        short[] out = new short[len];
+        for (int i = 0; i < len; i++)
+            out[i] = (short) ((w0 * data[i] + w1 * data2[i]) / denom);
+        return out;
+    }
+
     /** Extend a voiced period to `target` samples by appending a linear bridge from
      *  the period's last sample to `next` (the following period's first sample),
      *  exactly as voicesynth root.48 does: out[L+j] = last + (j+1)*(next-last)/(span+1).
@@ -193,20 +209,53 @@ public final class DiphoneSynth {
         // Collect each unit's pitch periods WITH their voiced flag so we can apply
         // the original proto7 pitch step (voiced periods only) below.
         if (sequencer == null) sequencer = new CandidateSequencer(db);
-        List<VoiceDatabase.Period> segs = new ArrayList<>();
+        List<VoiceDatabase.Period> raw = new ArrayList<>();
         // Mark, in period units, where each demi-syllable unit ends — these are the
         // seams the original smooths across (root.45 join filter), as opposed to the
         // joins *inside* a unit (consecutive recorded periods, already continuous).
-        List<Integer> unitEndPeriod = new ArrayList<>();
+        List<Integer> rawUnitEnd = new ArrayList<>();
         for (String name : sequencer.sequence(s)) {
             VoiceDatabase.Entry e = lookup(name);
             if (e == null) e = lookupRelaxed(name);
             if (e != null) {
-                segs.addAll(db.unitTypedPeriods(e));
-                unitEndPeriod.add(segs.size());
+                raw.addAll(db.unitTypedPeriods(e));
+                rawUnitEnd.add(raw.size());
             }
         }
-        if (segs.isEmpty()) return new short[0];
+        if (raw.isEmpty()) return new short[0];
+
+        // Honour the record `count` (voicesynth root.49 + root.52.5): a voiced frame
+        // with count>1 is rendered as `count` pitch periods linearly interpolated
+        // from this frame to the next (root.44:
+        // out[i] = ((n-1-j)*data[i] + j*data2[i])/(n-1)). count<=1 / unvoiced = one
+        // frame. This is what gives long vowels (count 21/23) their real duration —
+        // emitting one frame made them too short.
+        List<short[]> segs = new ArrayList<>();
+        List<Boolean> voiced = new ArrayList<>();
+        List<Integer> unitEndPeriod = new ArrayList<>();
+        int seamPtr = 0;
+        for (int k = 0; k < raw.size(); k++) {
+            VoiceDatabase.Period p = raw.get(k);
+            int n = p.count;
+            if (p.voiced && n > 1) {
+                // root.52.5: interpolate toward the next frame only if it is voiced;
+                // otherwise (unvoiced next, or none) interpolate toward self.
+                boolean nextVoiced = k + 1 < raw.size() && raw.get(k + 1).voiced
+                        && raw.get(k + 1).samples.length > 0;
+                short[] data2 = nextVoiced ? raw.get(k + 1).samples : p.samples;
+                for (int j = 0; j < n; j++) {
+                    segs.add(interpFrame(p.samples, data2, n, j));
+                    voiced.add(Boolean.TRUE);
+                }
+            } else {
+                segs.add(p.samples);
+                voiced.add(p.voiced);
+            }
+            while (seamPtr < rawUnitEnd.size() && rawUnitEnd.get(seamPtr) == k + 1) {
+                unitEndPeriod.add(segs.size());
+                seamPtr++;
+            }
+        }
 
         // Pitch contour — ported EXACTLY from the original voicesynth pitch
         // accumulator (root.47) + DSP (root.48). Per voiced period the offset slews
@@ -218,12 +267,12 @@ public final class DiphoneSynth {
         // gives a subtle ~100-110 Hz contour so repeated syllables differ — the cure
         // for the robotic 'mama'/'namas' — without the earlier exaggerated swing.
         int nV = 0;
-        for (VoiceDatabase.Period p : segs) if (p.voiced) nV++;
+        for (Boolean v : voiced) if (v) nV++;
         int[] targetLen = new int[segs.size()];
         double offset = 0; int iv = 0;
         for (int k = 0; k < segs.size(); k++) {
-            VoiceDatabase.Period p = segs.get(k);
-            if (!p.voiced) { targetLen[k] = p.samples.length; continue; }
+            short[] p = segs.get(k);
+            if (!voiced.get(k)) { targetLen[k] = p.length; continue; }
             int pc = (iv * 2 < nV) ? PC_EARLY : PC_LATE;       // PC[6] early, PC[3] late
             double slewTarget = -PROSODY + pc / 8.0;           // 0.0 early, -18.75 late
             double diff = slewTarget - offset;
@@ -236,7 +285,7 @@ public final class DiphoneSynth {
             int t = (int) (BASE_PERIOD + offset);
             // root.48 is EXTEND-ONLY: it never compresses a recorded period, only
             // pads it out to the target pitch. So the recorded length is the floor.
-            targetLen[k] = Math.max(p.samples.length, t);
+            targetLen[k] = Math.max(p.length, t);
             iv++;
         }
 
@@ -247,16 +296,16 @@ public final class DiphoneSynth {
         int seamIdx = 0;               // which entry of unitEndPeriod comes next
         List<Integer> seamSamples = new ArrayList<>();
         for (int k = 0; k < segs.size(); k++) {
-            VoiceDatabase.Period p = segs.get(k);
-            if (p.voiced && targetLen[k] > p.samples.length) {
+            short[] p = segs.get(k);
+            if (voiced.get(k) && targetLen[k] > p.length) {
                 // next period's first sample is the bridge target (root.48 src[0])
-                short next = (k + 1 < segs.size() && segs.get(k + 1).samples.length > 0)
-                        ? segs.get(k + 1).samples[0]
-                        : (p.samples.length > 0 ? p.samples[p.samples.length - 1] : 0);
-                short[] r = extendPeriod(p.samples, targetLen[k], next);
+                short next = (k + 1 < segs.size() && segs.get(k + 1).length > 0)
+                        ? segs.get(k + 1)[0]
+                        : (p.length > 0 ? p[p.length - 1] : 0);
+                short[] r = extendPeriod(p, targetLen[k], next);
                 System.arraycopy(r, 0, pcm, o, r.length); o += r.length;
             } else {
-                System.arraycopy(p.samples, 0, pcm, o, p.samples.length); o += p.samples.length;
+                System.arraycopy(p, 0, pcm, o, p.length); o += p.length;
             }
             // record the sample offset at every unit seam (not the final end)
             while (seamIdx < unitEndPeriod.size() && unitEndPeriod.get(seamIdx) == k + 1) {
