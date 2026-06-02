@@ -5,6 +5,7 @@ import android.speech.tts.SynthesisRequest;
 import android.speech.tts.TextToSpeechService;
 
 import com.rosasoft.wintalker.engine.DiphoneSynth;
+import com.rosasoft.wintalker.engine.NumberExpander;
 import com.rosasoft.wintalker.engine.Transcriber;
 import com.rosasoft.wintalker.engine.VoiceDatabase;
 
