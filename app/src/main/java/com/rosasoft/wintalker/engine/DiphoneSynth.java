@@ -21,6 +21,11 @@ public final class DiphoneSynth {
 
     public static final int SAMPLE_RATE = 22050;
 
+    /** Engine base pitch period (prosody table P0[5] = 220 samples ≈ 100 Hz). The
+     *  recorded voiced periods sit a little shorter (higher) than this; proto7
+     *  steps them toward this base. */
+    private static final int BASE_PERIOD = 220;
+
     private final VoiceDatabase db;
     private final Map<String, VoiceDatabase.Entry> index;
     private CandidateSequencer sequencer;
@@ -101,6 +106,15 @@ public final class DiphoneSynth {
         return out;
     }
 
+    /** Median sample-length of the voiced periods in a sequence (0 if none). */
+    private static int medianVoicedLength(List<VoiceDatabase.Period> ps) {
+        List<Integer> v = new ArrayList<>();
+        for (VoiceDatabase.Period p : ps) if (p.voiced) v.add(p.samples.length);
+        if (v.isEmpty()) return 0;
+        java.util.Collections.sort(v);
+        return v.get(v.size() / 2);
+    }
+
     /** Linear-interpolate a period to `len` samples (proto7's voiced resample). */
     private static short[] lerpResample(short[] src, int len) {
         short[] dst = new short[len];
@@ -138,26 +152,42 @@ public final class DiphoneSynth {
         // Select the unit-name sequence with CandidateSequencer — the data-driven
         // demi-syllable selector ported from the engine's `translate` (matches it
         // ~92% on the gold corpus; remaining cases mirror the engine's own quirks).
-        // Then concatenate each unit's periods directly, as the original proto8
-        // does (no inter-unit crossfade / leveling / resampling).
+        // Collect each unit's pitch periods WITH their voiced flag so we can apply
+        // the original proto7 pitch step (voiced periods only) below.
         if (sequencer == null) sequencer = new CandidateSequencer(db);
-        List<short[]> segs = new ArrayList<>();
+        List<VoiceDatabase.Period> segs = new ArrayList<>();
         for (String name : sequencer.sequence(s)) {
             VoiceDatabase.Entry e = lookup(name);
             if (e == null) e = lookupRelaxed(name);
-            if (e != null) {
-                for (short[] p : db.unitPeriods(e)) segs.add(p);
-            }
+            if (e != null) segs.addAll(db.unitTypedPeriods(e));
         }
         if (segs.isEmpty()) return new short[0];
 
-        // Concatenate all periods end-to-end (as the original does), with only a
-        // tiny click guard at period seams to avoid step discontinuities.
+        // proto7 pitch step: the recorded voiced periods sit slightly high
+        // (median ~105.5 Hz); the engine's base pitch period is BASE_PERIOD
+        // (P0[5]=220 ≈ 100 Hz). Lengthen every voiced period by ONE uniform factor
+        // toward that base — this lowers pitch a touch while preserving the natural
+        // period-to-period variation (intonation). Unvoiced (fricative/noise)
+        // periods are passed through untouched, so consonants keep their timbre.
+        int median = medianVoicedLength(segs);
+        float factor = median > 0 ? (float) BASE_PERIOD / median : 1f;
+        if (factor < 1f) factor = 1f;          // only ever lower pitch, never raise
+        if (factor > 1.10f) factor = 1.10f;    // cap the shift so it stays subtle
+
         int total = 0;
-        for (short[] p : segs) total += p.length;
+        for (VoiceDatabase.Period p : segs)
+            total += (p.voiced && factor > 1.001f)
+                    ? Math.round(p.samples.length * factor) : p.samples.length;
         short[] pcm = new short[total];
         int o = 0;
-        for (short[] p : segs) { System.arraycopy(p, 0, pcm, o, p.length); o += p.length; }
+        for (VoiceDatabase.Period p : segs) {
+            if (p.voiced && factor > 1.001f) {
+                short[] r = lerpResample(p.samples, Math.round(p.samples.length * factor));
+                System.arraycopy(r, 0, pcm, o, r.length); o += r.length;
+            } else {
+                System.arraycopy(p.samples, 0, pcm, o, p.samples.length); o += p.samples.length;
+            }
+        }
         applyFades(pcm, 48);
         return pcm;
     }
