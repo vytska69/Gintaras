@@ -6,3 +6,6 @@ build/
 # Python bytecode cache (from analysis tooling)
 __pycache__/
 *.pyc
+
+# Transient agent worktrees
+.claude/worktrees/
