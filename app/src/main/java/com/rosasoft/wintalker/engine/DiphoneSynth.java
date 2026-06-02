@@ -44,8 +44,8 @@ public final class DiphoneSynth {
             // falls back to the long variant (á/ó/ė) when a short unit is absent.
             case "aA": case "Aa": case "aa": return 'a';
             case "oO": case "Oo": case "oo": return 'o';
-            case "eE": case "Ee": case "ee": return 'e';
-            case "eA": case "Ea": case "ea": return 'e';
+            case "eE": case "Ee": return (char) 0xeb;  // ė (long/close e)
+            case "eA": case "Ea": case "ea": case "ee": return 'e';
             case "iI": case "ii": return 'i';
             case "uU": case "uu": return 'u';
             // glides and uppercase sonorant variants → their base letter
