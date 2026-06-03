@@ -86,6 +86,14 @@ public final class VoiceDatabase {
     /** Byte offset reached after parsing; equals the file length on a clean parse. */
     public int bytesConsumed;
 
+    /** Lazily-built map of the "N..." number bucket entries: key (e.g. "N10+3R",
+     *  "N1+0", "N0") → ordered list of spoken Lithuanian word fragments. These
+     *  bucket entries store a flat list of string-keyed records (no count/typ);
+     *  the original number expander (translate.decomp.txt root.24/24.1) builds
+     *  the same keys from a digit string and concatenates the fragments.
+     *  See {@link NumberExpander}. */
+    private Map<String, List<String>> numberBucketsCache;
+
     private final byte[] d;
     private int pos;
 
@@ -124,6 +132,50 @@ public final class VoiceDatabase {
         for (int i = 0; i + 1 < name.length; i += 2)
             sb.append((char) ((name[i] & 0xFF) | ((name[i + 1] & 0xFF) << 8)));
         return sb.toString();
+    }
+
+    /**
+     * Decode a dta-stored word (UTF-16LE code units) into real Lithuanian
+     * Unicode. The voice DB stores Lithuanian-specific letters in the same legacy
+     * code-unit scheme as the diphone names; for the number-bucket words exactly
+     * four such units occur (verified by scanning every "N..." record in the
+     * 3.6 MB file): U+010D→č, U+0111→š, U+0159→ų, U+0171→ū. Re-mapping them yields
+     * canonical strings (e.g. "tūkstančių", "šimtas") the Transcriber understands.
+     */
+    private static String numberWord(byte[] key) {
+        StringBuilder sb = new StringBuilder(key.length / 2);
+        for (int i = 0; i + 1 < key.length; i += 2) {
+            char c = (char) ((key[i] & 0xFF) | ((key[i + 1] & 0xFF) << 8));
+            switch (c) {
+                case 'đ': c = 'š'; break; // legacy 'đ' -> 'š'
+                case 'ř': c = 'ų'; break; // legacy 'ř' -> 'ų'
+                case 'ű': c = 'ū'; break; // legacy 'ű' -> 'ū'
+                // U+010D 'č' is already canonical; pass through
+                default: break;
+            }
+            sb.append(c);
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Number bucket index: maps each "N..." entry name to its ordered spoken word
+     * fragments. The entry name is plain ASCII (e.g. "N10+3R"); the records are
+     * the string-keyed fragments decoded by {@link #numberWord}. Built once.
+     */
+    public Map<String, List<String>> numberBuckets() {
+        if (numberBucketsCache == null) {
+            numberBucketsCache = new HashMap<>();
+            for (Entry e : entries) {
+                String nm = unitName(e.name);
+                if (nm.isEmpty() || nm.charAt(0) != 'N') continue;
+                List<String> words = new ArrayList<>(e.records.size());
+                for (Record r : e.records)
+                    if (!r.isNumeric()) words.add(numberWord(r.stringKey));
+                if (!words.isEmpty() || e.bucket) numberBucketsCache.put(nm, words);
+            }
+        }
+        return numberBucketsCache;
     }
 
     /**
