@@ -1,11 +1,14 @@
 package com.rosasoft.wintalker;
 
+import android.content.SharedPreferences;
+import android.preference.PreferenceManager;
 import android.speech.tts.SynthesisCallback;
 import android.speech.tts.SynthesisRequest;
 import android.speech.tts.TextToSpeechService;
 
 import com.rosasoft.wintalker.engine.DiphoneSynth;
 import com.rosasoft.wintalker.engine.NumberExpander;
+import com.rosasoft.wintalker.engine.TextNormalizer;
 import com.rosasoft.wintalker.engine.Transcriber;
 import com.rosasoft.wintalker.engine.VoiceDatabase;
 
@@ -33,6 +36,7 @@ public class TtsService extends TextToSpeechService {
 
     private VoiceDatabase voiceDb;
     private DiphoneSynth synth;
+    private TextNormalizer normalizer;
     private volatile boolean stop;
     private String[] currentLanguage = {LANG, COUNTRY, ""};
 
@@ -51,9 +55,36 @@ public class TtsService extends TextToSpeechService {
             while ((r = in.read(chunk)) != -1) out.write(chunk, 0, r);
             voiceDb = VoiceDatabase.parse(out.toByteArray());
             synth = new DiphoneSynth(voiceDb);
+            normalizer = loadNormalizer(voiceDb);
         } catch (IOException e) {
             voiceDb = null;
             synth = null;
+            normalizer = null;
+        }
+    }
+
+    /** Build the text-normalization layer from the bundled dictionary assets. The
+     *  punc tables are indexed by level 0..3 (punc0lit.dct .. punc3lit.dct); a
+     *  missing asset degrades gracefully (feature skipped). */
+    private TextNormalizer loadNormalizer(VoiceDatabase db) throws IOException {
+        InputStream[] punc = new InputStream[4];
+        for (int i = 0; i < 4; i++) punc[i] = openAsset("punc" + i + "lit.dct");
+        // create() reads each stream fully (it slurps the bytes), so the asset
+        // streams are consumed here and need no further use.
+        return TextNormalizer.create(db,
+                openAsset("ruleslit.rul"),
+                openAsset("stdlit.dct"),
+                openAsset("spelllit.dct"),
+                punc);
+    }
+
+    /** Open an asset, returning null when it is absent so optional dictionaries
+     *  do not break loading. */
+    private InputStream openAsset(String name) {
+        try {
+            return getAssets().open(name);
+        } catch (IOException e) {
+            return null;
         }
     }
 
@@ -95,34 +126,87 @@ public class TtsService extends TextToSpeechService {
         stop = false;
         callback.start(SAMPLE_RATE, android.media.AudioFormat.ENCODING_PCM_16BIT, 1);
 
-        // Expand digits to Lithuanian words so numbers are spoken (e.g. "12" →
-        // "dvylika"), then synthesize each whitespace-separated word.
-        text = NumberExpander.expand(text);
+        // Text-normalization ("reading") layer, ported from voicesynth root.53:
+        // transliterate (ruleslit), tokenize keeping punctuation, then per token
+        // apply the std dictionary, number expansion (numgroup) and the selected
+        // punctuation table / spell path. The settings drive behaviour.
+        TextNormalizer.Settings st = readSettings();
+        List<TextNormalizer.Token> tokens = (normalizer != null)
+                ? normalizer.normalize(text, st)
+                : fallbackTokens(text);
+
         // Pause model ported from the original (voicesynth root.53 + root.50):
         // between words/clauses a tiny P3/P2.Silence=20 ≈ 0.02 s; at sentence end
         // (. ! ? ; :) and at the very end of the utterance the P4.Silence=300 ≈
-        // 0.30 s. The original does NOT insert a big gap after every word — that
-        // was our bug (fixed 0.18 s ≈ 9× too long).
+        // 0.30 s. The original does NOT insert a big gap after every word.
         short[] wordPause = new short[(int) (0.02 * SAMPLE_RATE)];   // P3/P2 = 20
         short[] sentPause = new short[(int) (0.30 * SAMPLE_RATE)];   // P4 = 300
-        String[] words = text.split("\\s+");
-        for (int wi = 0; wi < words.length; wi++) {
+        // Spell tokens are read slowed (root.53 scales the tempo by 1.6 for the
+        // spell path); we add a small extra gap between spelled letters instead.
+        short[] spellPause = new short[(int) (0.10 * SAMPLE_RATE)];
+        for (int wi = 0; wi < tokens.size(); wi++) {
             if (stop) break;
-            String word = words[wi];
-            if (word.isEmpty()) continue;
-            int[] w = Transcriber.normalise(word);
-            if (w.length == 0) continue;
+            TextNormalizer.Token tk = tokens.get(wi);
+            boolean isLast = wi == tokens.size() - 1;
+            // A pure punctuation token has no spoken word but still drives the
+            // pause: sentence-final marks (. ! ? ; :) → long pause, else tiny gap.
+            char pc = tk.punctuation;
+            boolean sentenceEnd = pc != 0 && ".!?;:".indexOf(pc) >= 0;
+            if (tk.text == null || tk.text.isEmpty()) {
+                if (pc != 0 && !writePcm(callback, sentenceEnd ? sentPause : wordPause)) break;
+                continue;
+            }
+            int[] w = Transcriber.normalise(tk.text);
+            if (w.length == 0) {
+                if (pc != 0 && !writePcm(callback, sentenceEnd ? sentPause : wordPause)) break;
+                continue;
+            }
             List<String> phonemes = Transcriber.transcribe(w, w.length);
             short[] pcm = synth.synthesize(phonemes.toArray(new String[0]));
             if (!writePcm(callback, pcm)) break;
-            // sentence-final punctuation (kept on the raw token) → long pause;
-            // last word of the utterance → long trailing pause; else tiny gap.
-            char last = word.charAt(word.length() - 1);
-            boolean sentenceEnd = ".!?;:".indexOf(last) >= 0;
-            boolean isLast = wi == words.length - 1;
-            if (!writePcm(callback, (sentenceEnd || isLast) ? sentPause : wordPause)) break;
+            short[] gap = sentenceEnd || isLast ? sentPause : (tk.spell ? spellPause : wordPause);
+            if (!writePcm(callback, gap)) break;
         }
         callback.done();
+    }
+
+    /** Read the SharedPreferences that affect reading. Keys match root_preferences
+     *  / arrays.xml: punctuation (puncValues → punc file index), numgroup
+     *  (numValues; 16 = full cardinal), use_dictionary. */
+    private TextNormalizer.Settings readSettings() {
+        TextNormalizer.Settings st = new TextNormalizer.Settings();
+        try {
+            SharedPreferences p = PreferenceManager.getDefaultSharedPreferences(this);
+            st.punctuationLevel = parseIntPref(p, "punctuation", 0);
+            st.numgroup = parseIntPref(p, "numgroup", NumberExpander.NUMGROUP_FULL);
+            st.useDictionary = p.getBoolean("use_dictionary", true);
+        } catch (Exception e) {
+            // keep defaults
+        }
+        return st;
+    }
+
+    /** ListPreference values are stored as strings; parse to int with a default. */
+    private static int parseIntPref(SharedPreferences p, String key, int def) {
+        String v = p.getString(key, null);
+        if (v == null) return def;
+        try {
+            return Integer.parseInt(v.trim());
+        } catch (NumberFormatException e) {
+            return def;
+        }
+    }
+
+    /** Minimal tokenization if the normalizer failed to load (no dictionaries):
+     *  whitespace split, no transliteration / punctuation tables. */
+    private List<TextNormalizer.Token> fallbackTokens(String text) {
+        java.util.List<TextNormalizer.Token> out = new java.util.ArrayList<>();
+        for (String w : text.split("\\s+")) {
+            if (w.isEmpty()) continue;
+            char last = w.charAt(w.length() - 1);
+            out.add(new TextNormalizer.Token(w, ".!?;:".indexOf(last) >= 0 ? last : (char) 0, false));
+        }
+        return out;
     }
 
     /** Write 16-bit PCM to the callback in maxBufferSize chunks (little-endian).
