@@ -9,3 +9,6 @@ __pycache__/
 
 # Transient agent worktrees
 .claude/worktrees/
+
+# Transient agent worktrees
+.claude/worktrees/
