@@ -313,37 +313,15 @@ public final class DiphoneSynth {
             }
         }
 
-        // Pitch contour — ported EXACTLY from the original voicesynth pitch
-        // accumulator (root.47) + DSP (root.48). Per voiced period the offset slews
-        // toward `slewTarget = -Prosody + PC/8`, where PC is the ProsodyChange entry
-        // PC[6]=160 over the first half of the word and PC[3]=10 over the second
-        // (P1 ramp {0,50,10,20,50,160}); Prosody = P0.Prosody = 20. The slew step is
-        // (diff>>4)+1 when rising, -((-diff)>>4) (min -1) when falling, then floored
-        // and clamped to +-100. Target period = BASE_PERIOD + offset (root.48). This
-        // gives a subtle ~100-110 Hz contour so repeated syllables differ — the cure
-        // for the robotic 'mama'/'namas' — without the earlier exaggerated swing.
-        int nV = 0;
-        for (Boolean v : voiced) if (v) nV++;
+        // Pitch: emit every period at its RECORDED length — no synthetic contour.
+        // The recorded voiced periods already average ~208 samples (~106 Hz) and
+        // carry the voice's natural micro-pitch; the engine's optional root.47/48
+        // pitch-offset would extend them toward BASE_PERIOD=220, but with the real
+        // data (recorded ≈ base) that only ADDS length and an artificial rise/fall —
+        // heard as wrong intonation and "vowel lengthening that snags". The shipped
+        // voice speaks essentially monotone, so we keep the recorded lengths as-is.
         int[] targetLen = new int[segs.size()];
-        double offset = 0; int iv = 0;
-        for (int k = 0; k < segs.size(); k++) {
-            short[] p = segs.get(k);
-            if (!voiced.get(k)) { targetLen[k] = p.length; continue; }
-            int pc = (iv * 2 < nV) ? PC_EARLY : PC_LATE;       // PC[6] early, PC[3] late
-            double slewTarget = -PROSODY + pc / 8.0;           // 0.0 early, -18.75 late
-            double diff = slewTarget - offset;
-            int step;
-            if (diff == 0) step = 0;
-            else if (diff > 0) step = ((int) diff >> 4) + 1;   // rshift truncates to int
-            else { step = -((int) (-diff) >> 4); if (step == 0) step = -1; }
-            offset = Math.floor(offset + step);
-            if (offset > 100) offset = 100; else if (offset < -100) offset = -100;
-            int t = (int) (BASE_PERIOD + offset);
-            // root.48 is EXTEND-ONLY: it never compresses a recorded period, only
-            // pads it out to the target pitch. So the recorded length is the floor.
-            targetLen[k] = Math.max(p.length, t);
-            iv++;
-        }
+        for (int k = 0; k < segs.size(); k++) targetLen[k] = segs.get(k).length;
 
         int total = 0;
         for (int len : targetLen) total += len;

@@ -177,7 +177,10 @@ public class TtsService extends TextToSpeechService {
         TextNormalizer.Settings st = new TextNormalizer.Settings();
         try {
             SharedPreferences p = PreferenceManager.getDefaultSharedPreferences(this);
-            st.punctuationLevel = parseIntPref(p, "punctuation", 0);
+            // Default "Išjungta" (=1): punctuation is NOT spoken aloud, it only
+            // drives pauses (arrays.xml puncValues: Išjungta=1, Kai kurie=2,
+            // Dauguma=0, Visi=3). Reading mark names is opt-in via Settings.
+            st.punctuationLevel = parseIntPref(p, "punctuation", 1);
             st.numgroup = parseIntPref(p, "numgroup", NumberExpander.NUMGROUP_FULL);
             st.useDictionary = p.getBoolean("use_dictionary", true);
         } catch (Exception e) {
