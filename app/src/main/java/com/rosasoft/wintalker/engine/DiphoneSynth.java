@@ -267,97 +267,199 @@ public final class DiphoneSynth {
         String s = seq.toString();
 
         // Select the unit-name sequence with CandidateSequencer — the data-driven
-        // demi-syllable selector ported from the engine's `translate` (matches it
-        // ~92% on the gold corpus; remaining cases mirror the engine's own quirks).
-        // Collect each unit's pitch periods WITH their voiced flag so we can apply
-        // the original proto7 pitch step (voiced periods only) below.
+        // demi-syllable selector ported from the engine's `translate`.
         if (sequencer == null) sequencer = new CandidateSequencer(db);
-        List<VoiceDatabase.Period> raw = new ArrayList<>();
-        // Mark, in period units, where each demi-syllable unit ends — these are the
-        // seams the original smooths across (root.45 join filter), as opposed to the
-        // joins *inside* a unit (consecutive recorded periods, already continuous).
-        List<Integer> rawUnitEnd = new ArrayList<>();
-        for (String name : sequencer.sequence(s)) {
+        return synthesizeUnits(sequencer.sequence(s));
+    }
+
+    // ===================== Faithful voicesynth DSP port =====================
+    // Re-derived by running the ORIGINAL LuaJIT voicesynth over Gintaras.dta and
+    // dumping every emitted pitch period (one yield per period). The structural
+    // assembly below mirrors voicesynth root.52/51/49/48/47/45 exactly; validated
+    // by cross-correlating Java PCM against the engine's reference PCM per word.
+    //
+    // Prosody constants from loadvoice (root.43) on the Gintaras voice:
+    //   BASE_PERIOD = P0[5] = 220          (base pitch period, samples)
+    //   PROSODY     = P0[1]+P0[2] = 20
+    //   ProsodyChange P1 = {0,50,10,20,50,160}; PC[3]=10, PC[6]=160 (1-based)
+    //   TEMPO       = P0[6]/100 = 0.62     (count-domain resample factor)
+    private static final double TEMPO_FACTOR = 0.62;
+    private static final int PC3 = 10, PC6 = 160;
+
+    /** Build PCM from an explicit engine unit-name sequence. */
+    public short[] synthesizeUnits(List<String> unitNames) {
+        // Resolve each unit to its records (Period{samples,voiced,count}).
+        List<List<VoiceDatabase.Period>> units = new ArrayList<>();
+        for (String name : unitNames) {
             VoiceDatabase.Entry e = lookup(name);
             if (e == null) e = lookupRelaxed(name);
-            if (e != null) {
-                raw.addAll(db.unitTypedPeriods(e));
-                rawUnitEnd.add(raw.size());
+            if (e == null) continue;
+            List<VoiceDatabase.Period> recs = db.unitTypedPeriods(e);
+            if (!recs.isEmpty()) units.add(recs);
+        }
+        if (units.isEmpty()) return new short[0];
+
+        // ---- root.52/51: count-domain tempo resampler -> flat list of frames ----
+        // For each VOICED record accumulate count*TEMPO and emit floor() periods,
+        // dropping the fractional remainder (decimates ~38% of periods at 0.62).
+        // UNVOICED records pass through verbatim (no resampling). A voiced record
+        // with count>1 expands to `count` linear-interpolated frames (root.44 /
+        // root.52.5) before resampling.
+        List<short[]> frames = new ArrayList<>();
+        List<Boolean> voiced = new ArrayList<>();
+        List<Integer> frameUnit = new ArrayList<>();   // 1-based source unit index
+        double acc = 0;
+        for (int ui = 0; ui < units.size(); ui++) {
+            List<VoiceDatabase.Period> recs = units.get(ui);
+            for (int ri = 0; ri < recs.size(); ri++) {
+                VoiceDatabase.Period p = recs.get(ri);
+                List<short[]> srcFrames = new ArrayList<>();
+                if (p.voiced && p.count > 1) {
+                    boolean nextVoiced = ri + 1 < recs.size() && recs.get(ri + 1).voiced
+                            && recs.get(ri + 1).samples.length > 0;
+                    short[] data2 = nextVoiced ? recs.get(ri + 1).samples : p.samples;
+                    for (int j = 0; j < p.count; j++)
+                        srcFrames.add(interpFrame(p.samples, data2, p.count, j));
+                } else {
+                    srcFrames.add(p.samples);
+                }
+                if (p.voiced) {
+                    for (short[] sf : srcFrames) {
+                        acc += TEMPO_FACTOR;
+                        int emit = (int) Math.floor(acc);
+                        for (int q = 0; q < emit; q++) {
+                            frames.add(sf); voiced.add(Boolean.TRUE); frameUnit.add(ui + 1);
+                        }
+                        acc -= emit;
+                    }
+                } else {
+                    for (short[] sf : srcFrames) {
+                        frames.add(sf); voiced.add(Boolean.FALSE); frameUnit.add(ui + 1);
+                    }
+                }
             }
         }
-        if (raw.isEmpty()) return new short[0];
+        if (frames.isEmpty()) return new short[0];
 
-        // Honour the record `count` (voicesynth root.49 + root.52.5): a voiced frame
-        // with count>1 is rendered as `count` pitch periods linearly interpolated
-        // from this frame to the next (root.44:
-        // out[i] = ((n-1-j)*data[i] + j*data2[i])/(n-1)). count<=1 / unvoiced = one
-        // frame. This is what gives long vowels (count 21/23) their real duration —
-        // emitting one frame made them too short.
-        List<short[]> segs = new ArrayList<>();
-        List<Boolean> voiced = new ArrayList<>();
-        List<Integer> unitEndPeriod = new ArrayList<>();
-        int seamPtr = 0;
-        for (int k = 0; k < raw.size(); k++) {
-            VoiceDatabase.Period p = raw.get(k);
-            int n = p.count;
-            if (p.voiced && n > 1) {
-                // root.52.5: interpolate toward the next frame only if it is voiced;
-                // otherwise (unvoiced next, or none) interpolate toward self.
-                boolean nextVoiced = k + 1 < raw.size() && raw.get(k + 1).voiced
-                        && raw.get(k + 1).samples.length > 0;
-                short[] data2 = nextVoiced ? raw.get(k + 1).samples : p.samples;
-                for (int j = 0; j < n; j++) {
-                    segs.add(interpFrame(p.samples, data2, n, j));
-                    voiced.add(Boolean.TRUE);
+        // ---- root.48 + root.47: per-period pitch regeneration ----
+        // Each voiced period is rebuilt at target pitch length = BASE + accumulator,
+        // the accumulator slewing per period via root.47. Recorded samples are copied
+        // verbatim (timbre preserved) into the target-length buffer; if shorter, a
+        // linear bridge ramps the tail toward the next period's first sample. Unvoiced
+        // periods emit verbatim. root.45 smooths each period seam. Output buffers are
+        // appended in order (root.46).
+        // Pitch arch via root.47: the slew target is PC[3] (period falls) for the
+        // first half of the word and PC[6] (recover to base) for the second half,
+        // keyed by the SOURCE UNIT index (root.52 sets phonecount=#units,
+        // phoneorder=unit index; root.47 fires per emitted period). This reproduces
+        // the original's shallow per-word pitch arch.
+        int phonecount = units.size();      // root.52: phonecount = #units
+
+        pitchAcc = 0;
+        pitchTarget = 0;
+        short[] prevBuf = null;
+        boolean prevVoiced = false;
+        int prevPitch = 0;
+        List<short[]> outPeriods = new ArrayList<>();
+        for (int k = 0; k < frames.size(); k++) {
+            short[] cur = frames.get(k);
+            boolean curVoiced = voiced.get(k);
+            int target = BASE_PERIOD;          // floor(BASE*scale), scale=1
+            if (curVoiced) {
+                root47(phonecount, frameUnit.get(k));
+                target = BASE_PERIOD + pitchAcc;
+            }
+            if (prevBuf == null) {
+                prevBuf = cur; prevVoiced = curVoiced; prevPitch = target;
+                continue;
+            }
+            short[] emit;
+            if (prevVoiced) {
+                emit = new short[Math.max(prevPitch, 1)];
+                int copy = Math.min(prevPitch, prevBuf.length);
+                System.arraycopy(prevBuf, 0, emit, 0, copy);
+                if (prevBuf.length < prevPitch && prevBuf.length > 0) {
+                    int last = prevBuf[prevBuf.length - 1];
+                    int next = cur.length > 0 ? cur[0] : last;
+                    int span = prevPitch - prevBuf.length;
+                    int delta = next - last;
+                    for (int j = 0; j < span; j++)
+                        emit[prevBuf.length + j] =
+                            (short) (last + (long) (j + 1) * delta / (span + 1));
                 }
             } else {
-                segs.add(p.samples);
-                voiced.add(p.voiced);
+                emit = prevBuf;
             }
-            while (seamPtr < rawUnitEnd.size() && rawUnitEnd.get(seamPtr) == k + 1) {
-                unitEndPeriod.add(segs.size());
-                seamPtr++;
-            }
+            root45(emit, cur);
+            outPeriods.add(emit);
+            prevBuf = cur; prevVoiced = curVoiced; prevPitch = target;
         }
-
-        // Pitch: emit every period at its RECORDED length — no synthetic contour.
-        // The recorded voiced periods already average ~208 samples (~106 Hz) and
-        // carry the voice's natural micro-pitch; the engine's optional root.47/48
-        // pitch-offset would extend them toward BASE_PERIOD=220, but with the real
-        // data (recorded ≈ base) that only ADDS length and an artificial rise/fall —
-        // heard as wrong intonation and "vowel lengthening that snags". The shipped
-        // voice speaks essentially monotone, so we keep the recorded lengths as-is.
-        int[] targetLen = new int[segs.size()];
-        for (int k = 0; k < segs.size(); k++) targetLen[k] = segs.get(k).length;
+        if (prevBuf != null) outPeriods.add(prevBuf);
 
         int total = 0;
-        for (int len : targetLen) total += len;
+        for (short[] p : outPeriods) total += p.length;
         short[] pcm = new short[total];
         int o = 0;
-        List<Integer> boundaries = new ArrayList<>();
-        for (int k = 0; k < segs.size(); k++) {
-            short[] p = segs.get(k);
-            if (voiced.get(k) && targetLen[k] > p.length) {
-                // next period's first sample is the bridge target (root.48 src[0])
-                short next = (k + 1 < segs.size() && segs.get(k + 1).length > 0)
-                        ? segs.get(k + 1)[0]
-                        : (p.length > 0 ? p[p.length - 1] : 0);
-                short[] r = extendPeriod(p, targetLen[k], next);
-                System.arraycopy(r, 0, pcm, o, r.length); o += r.length;
-            } else {
-                System.arraycopy(p, 0, pcm, o, p.length); o += p.length;
-            }
-            // root.45 runs at EVERY period boundary (called per-period from
-            // voicesynth root.48), not only at unit seams — record them all.
-            if (k + 1 < segs.size()) boundaries.add(o);
-        }
-        // root.45 join smoothing: two passes of 2-tap neighbour averaging across the
-        // boundary (window ±4 then ±8). Applied at every period join — this removes
-        // the small kink left by each extend-ramp, which otherwise buzzes through
-        // sustained vowels (count 21/23 = many extended periods). The original has no
-        // amplitude fades, so we don't add any.
-        for (int seam : boundaries) smoothSeam(pcm, seam);
+        for (short[] p : outPeriods) { System.arraycopy(p, 0, pcm, o, p.length); o += p.length; }
         return pcm;
+    }
+
+    // root.47 pitch accumulator state (per utterance).
+    private int pitchAcc = 0;
+    private int pitchTarget = 0;
+
+    /** Pitch slew toward a per-phone target, faithful to voicesynth root.47.
+     *  In playback order the first half of the word slews toward PC[3]=10
+     *  (slew -18.75, period falls) and the second half toward PC[6]=160
+     *  (slew 0, period recovers to base): a single shallow pitch arch matching
+     *  the original. Step = (sign)*(|delta|>>4, +1 toward target); clamp +-100. */
+    private void root47(int phonecount, int phoneorder) {
+        if (phonecount > 0 && phoneorder > 0) {
+            pitchTarget = (phonecount / 2.0 >= phoneorder) ? PC3 : PC6;
+        }
+        double slew = -PROSODY + pitchTarget / 8.0;
+        double d = slew - pitchAcc;
+        if (d != 0) {
+            int step;
+            if (d > 0) step = ((int) d >> 4) + 1;
+            else { step = -((int) (-d) >> 4); if (step == 0) step = -1; }
+            pitchAcc = pitchAcc + step;
+            if (pitchAcc < -100) pitchAcc = -100;
+            else if (pitchAcc > 100) pitchAcc = 100;
+        }
+    }
+
+    /** Join-smoothing filter, faithful port of voicesynth root.45: two passes
+     *  (window +-4 then +-8) of 2-tap averaging across the seam between period
+     *  buffers b0|b1 (b1 follows b0). A 0 sample is treated as absent (the
+     *  original's truthiness quirk). Modifies b0/b1 in place. */
+    private static void root45(short[] b0, short[] b1) {
+        // The two period buffers form one virtual stream s = b0 || b1 (b1 follows
+        // b0). For the seam neighbourhood the filter writes the midpoint:
+        //   s[c+1] = (s[c] + s[c+2]) / 2,  c = (n0-1)+j,  j in [-w, w]
+        // (a 0 sample is treated as absent and skipped — the original's truthiness
+        // quirk). Guarded so reads/writes stay inside [0, n0+n1).
+        int n0 = b0.length, n1 = b1.length, n = n0 + n1;
+        for (int pass = 1; pass <= 2; pass++) {
+            int w = 4 * pass;
+            for (int j = -w; j <= w; j++) {
+                if (!(-j < n0 - 1 && j < n1 - 1)) continue;
+                int c = (n0 - 1) + j;
+                if (c < 0 || c + 2 >= n) continue;
+                int left = streamGet(b0, b1, n0, c);
+                if (left == 0) left = streamGet(b0, b1, n0, c);   // (quirk no-op)
+                int right = streamGet(b0, b1, n0, c + 2);
+                int mid = (left + right) / 2;
+                streamSet(b0, b1, n0, c + 1, (short) mid);
+            }
+        }
+    }
+
+    private static int streamGet(short[] b0, short[] b1, int n0, int i) {
+        return i < n0 ? b0[i] : b1[i - n0];
+    }
+    private static void streamSet(short[] b0, short[] b1, int n0, int i, short v) {
+        if (i < n0) b0[i] = v; else b1[i - n0] = v;
     }
 
     /** Concatenate pitch periods with a tiny crossfade at each period boundary to
