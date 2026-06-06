@@ -246,7 +246,8 @@ public final class DiphoneSynth {
         for (String p : phonemes) if (!p.equals("_")) ps.add(p);
         StringBuilder seq = new StringBuilder();
         for (int i = 0; i < ps.size(); i++) {
-            String m = phonemeStr(ps.get(i));
+            String ph = ps.get(i);
+            String m = phonemeStr(ph);
             if (m.length() == 1) {
                 char shortV = diphthongShort(m.charAt(0));
                 if (shortV != 0) {
@@ -256,6 +257,12 @@ public final class DiphoneSynth {
                 }
             }
             seq.append(m);
+            // Emit the palatalisation marker '|' (U+007C) after a palatalised phoneme,
+            // exactly as the original trans conversion does (trans root.8.37: ' -> |).
+            // CandidateSequencer consumes it to pick the soft "C|" units (translate
+            // root.22.5). Without it, palatalised consonants select the wrong units —
+            // the cause of the "grybauja" garble and laipsniu->laipsnu.
+            if (ph.endsWith("'")) seq.append((char) 0x7c);
         }
         String s = seq.toString();
 
