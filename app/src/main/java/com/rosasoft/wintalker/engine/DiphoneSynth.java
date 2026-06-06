@@ -43,93 +43,6 @@ public final class DiphoneSynth {
     }
 
     /**
-     * Map a transcriber phoneme token (e.g. "aA", "l'", "S", "N") to the single
-     * cp1257 phoneme char used in diphone names. The diphone alphabet uses one
-     * char per phoneme: the base letter, lowercase for plain, with long/stressed
-     * vowels using their accented cp1257 forms.
-     */
-    /** Map a KircTranskr phoneme token to its voice-DB unit-name code unit(s).
-     *  Recovered byte-for-byte from the original `trans` conversion table + the
-     *  inverse special-letter table (cp1257 → 2-byte code): the DB indexes units
-     *  by these code units (low byte for U+01xx). Verified against the .dta: e.g.
-     *  long-a units are "mU-"/"-mU" (U+0155), č units "{010d}u-", š "{0111}u-". */
-    private static String phonemeStr(String ph) {
-        // palatalisation marker stripped (the DB's soft variants are not addressed
-        // by this v1 port; the base consonant unit still resolves).
-        String b = ph.endsWith("'") ? ph.substring(0, ph.length() - 1) : ph;
-        switch (b) {
-            // long vowels (monophthongs) — long code units (hex = DB code unit)
-            case "aA": case "Aa": case "aa": return s(0x0155); // long a
-            case "iI": case "ii":            return s(0x00e1); // long i (y/i-ogonek)
-            case "oO": case "Oo": case "oo": return s(0x00f3); // long o
-            case "eE": case "Ee": case "ee": return s(0x00eb); // e (e-dot)
-            case "eA": case "Ea": case "ea": return s(0x0107); // e-ogonek
-            case "uU": case "uu":            return s(0x0159); // long u
-            // glides reuse the short vowel chars (au->a u, ai->a i, ie->i e ...)
-            case "J": return "i";
-            case "W": return "u";
-            case "w": return "u";
-            // sibilants / affricates — recorded under their own code units
-            case "tS": return s(0x010d);            // c-caron
-            case "S":  return s(0x0111);            // s-caron
-            case "Z":  return s(0x0163);            // z-caron
-            case "dZ": return "d" + s(0x0163);      // d z-caron
-            case "ts": return "c";
-            case "dz": return "dz";
-            case "x":  return "ch";
-            // short vowels
-            case "a": case "e": case "i": case "o": case "u": return b;
-            // sonorant case variants → base letter
-            case "L": return "l";
-            case "M": return "m";
-            case "N": return "n";
-            case "R": return "r";
-            default:
-                return b.isEmpty() ? "" : b.toLowerCase();
-        }
-    }
-
-    /** Build a one-char String at the given code unit. */
-    private static String s(int codeUnit) { return String.valueOf((char) codeUnit); }
-
-    /** If c is a long monophthong code unit, the short ascii vowel to use inside a
-     *  diphthong; otherwise 0. */
-    private static char diphthongShort(char c) {
-        switch (c) {
-            case (char) 0x0155: return 'a'; // long a
-            case (char) 0x00e1: return 'i'; // long i
-            case (char) 0x00f3: return 'o'; // long o
-            case (char) 0x00eb: return 'e'; // e
-            case (char) 0x0159: return 'u'; // long u
-            case (char) 0x0107: return 'e'; // e-ogonek
-            default: return 0;
-        }
-    }
-
-    /** Whether a phoneme is a glide (J/W) or any vowel — i.e. it forms a diphthong
-     *  with an adjacent long vowel, in which case the short vowel char is used. */
-    private static boolean isGlideOrVowel(String ph) {
-        String b = ph.endsWith("'") ? ph.substring(0, ph.length() - 1) : ph;
-        switch (b) {
-            case "J": case "W":
-            case "a": case "e": case "i": case "o": case "u":
-            case "aA": case "Aa": case "aa": case "eA": case "Ea": case "ea":
-            case "eE": case "Ee": case "ee": case "iI": case "ii":
-            case "oO": case "Oo": case "oo": case "uU": case "uu":
-                return true;
-            default: return false;
-        }
-    }
-
-    /** Whether a diphone-name char is a vowel: short a e i o u, the plain cp1257
-     *  long vowels ī/ė/ō, and the long-vowel code units ā/ę/ū (U+0155/0107/0159). */
-    private static boolean isVowelChar(char c) {
-        return c=='a'||c=='e'||c=='i'||c=='o'||c=='u'
-            || c==(char)0xe1 || c==(char)0xeb || c==(char)0xf3
-            || c==(char)0x0155 || c==(char)0x0107 || c==(char)0x0159;
-    }
-
-    /**
      * proto7 DSP, simplified: steady the pitch of voiced periods by linearly
      * interpolating each voiced period to the unit's mean voiced-period length;
      * leave unvoiced (consonant/noise) periods exactly as recorded. Returns plain
@@ -233,41 +146,16 @@ public final class DiphoneSynth {
      * unit for every adjacent phoneme pair and concatenate their waveforms.
      */
     public short[] synthesize(String[] phonemes) {
-        // Build the diphone-name char string. The phoneme→unit-char map and code
-        // points are recovered from the original `trans` module's conversion table
-        // (see phonemeStr): the special Lithuanian letters are stored as 2-byte
-        // code units whose low byte is the index char — č=U+010D, š=U+0111, ž=U+0163,
-        // ā=U+0155, ę=U+0107, ū=U+0159 — while ī=0xE1, ė=0xEB, ō=0xF3 are plain
-        // cp1257. Long monophthong vowels keep their long code unit, but DOWNGRADE to
-        // the short ascii vowel inside a diphthong (au, uo, ie, …) because the DB's
-        // diphthong units use short vowels. A vowel is "in a diphthong" when adjacent
-        // to a glide (J/W) or another vowel.
-        List<String> ps = new ArrayList<>();
-        for (String p : phonemes) if (!p.equals("_")) ps.add(p);
-        StringBuilder seq = new StringBuilder();
-        for (int i = 0; i < ps.size(); i++) {
-            String ph = ps.get(i);
-            String m = phonemeStr(ph);
-            if (m.length() == 1) {
-                char shortV = diphthongShort(m.charAt(0));
-                if (shortV != 0) {
-                    boolean diph = (i > 0 && isGlideOrVowel(ps.get(i - 1)))
-                            || (i + 1 < ps.size() && isGlideOrVowel(ps.get(i + 1)));
-                    if (diph) m = String.valueOf(shortV);
-                }
-            }
-            seq.append(m);
-            // Emit the palatalisation marker '|' (U+007C) after a palatalised phoneme,
-            // exactly as the original trans conversion does (trans root.8.37: ' -> |).
-            // CandidateSequencer consumes it to pick the soft "C|" units (translate
-            // root.22.5). Without it, palatalised consonants select the wrong units —
-            // the cause of the "grybauja" garble and laipsniu->laipsnu.
-            if (ph.endsWith("'")) seq.append((char) 0x7c);
-        }
-        String s = seq.toString();
+        // Build the conversion code-unit string with the literal trans-conversion
+        // port ({@link Conversion}, == the original trans root.8 + root.37.11).
+        // This carries the special-letter code units, the diphthong short-vowel
+        // handling and the '|' palatal marker exactly as the original engine does
+        // (validated 100% byte-for-byte over the corpus). Then select the demi-
+        // syllable unit sequence with the literal translate port.
+        List<String> ps = new ArrayList<>(phonemes.length);
+        for (String p : phonemes) ps.add(p);
+        String s = Conversion.convert(ps);
 
-        // Select the unit-name sequence with CandidateSequencer — the data-driven
-        // demi-syllable selector ported from the engine's `translate`.
         if (sequencer == null) sequencer = new CandidateSequencer(db);
         return synthesizeUnits(sequencer.sequence(s));
     }
