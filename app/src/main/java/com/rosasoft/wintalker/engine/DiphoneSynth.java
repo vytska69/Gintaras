@@ -322,7 +322,7 @@ public final class DiphoneSynth {
         root50(SILENCE_MS);
         // root.53 0386-0387 then root.49()/root.48() flush (0117): emit the stashed
         // final period verbatim.
-        if (emitPrevBuf != null) emitPeriod(emitPrevBuf, prevVoiced, prevPitch, null);
+        flushPeriod();
 
         lastPeriodLengths = new int[outPeriods.size()];
         for (int p = 0; p < outPeriods.size(); p++) lastPeriodLengths[p] = outPeriods.get(p).length;
@@ -389,42 +389,51 @@ public final class DiphoneSynth {
         root47(phonecount, phoneorder);
         target += slew;
         if (emitPrevBuf == null) {
-            // first period: stash, no emit (root.48 0015-0039)
+            // first period (root.48 0015-0039): R8 = fresh copy of data; stash it.
+            // No emit and no join yet (there is no previous period).
             if (data != null) {
-                emitPrevBuf = data; prevVoiced = (typBit == 1); prevPitch = target;
+                emitPrevBuf = data.clone(); prevVoiced = (typBit == 1); prevPitch = target;
             }
             return;
         }
-        if (data == null) return;
-        // emit the stashed previous period rebuilt to its own target length,
-        // bridging toward this period's first sample (root.48 0040-0116).
-        emitPeriod(emitPrevBuf, prevVoiced, prevPitch, data);
-        emitPrevBuf = data; prevVoiced = (typBit == 1); prevPitch = target;
-    }
-
-    /** Emit one period: voiced -> rebuilt to `pitch` length (recorded prefix copied
-     *  verbatim, tail bridged toward `next`'s first sample); unvoiced/last -> verbatim.
-     *  Then root.45 join with `next` (when present). voicesynth root.48 0064-0110. */
-    private void emitPeriod(short[] buf, boolean voiced, int pitch, short[] next) {
+        if (data == null) return;                  // flush handled by caller
+        // subsequent period (root.48 0040-0116): R8 = fresh copy of the new data;
+        // rebuild the stashed previous period (R5) to its own pitch length, join the
+        // two with root.45 (which mutates BOTH the emitted period and R8), emit the
+        // rebuilt previous, then stash R8 (carrying its root.45-smoothed head into
+        // the next period). Working on a fresh copy keeps the recorded DB block
+        // intact and reproduces the engine's in-place join exactly.
+        short[] cur = data.clone();                // R8
+        short[] prev = emitPrevBuf;                // R5 = prev.buffer
         short[] emit;
-        if (voiced) {
-            int len = buf.length;
-            emit = new short[Math.max(pitch, 1)];
-            int copy = Math.min(pitch, len);
-            System.arraycopy(buf, 0, emit, 0, copy);
-            if (len < pitch && len > 0) {                   // root.48 0083-0101 bridge
-                int last = buf[len - 1];
-                int nv = (next != null && next.length > 0) ? next[0] : last;
-                int delta = nv - last;
-                int span = pitch - len;                     // R14 = R7-R9
-                for (int k = 0; k < span - 1; k++)          // for R18=0..span-2
-                    emit[len + k] = (short) (last + (long) (k + 1) * delta / span);
+        if (prevVoiced) {                          // R6 == 1 (0064-0102)
+            int n9 = prev.length;                  // R9 = len(prev.buffer)
+            int n7 = prevPitch;                    // R7 = prev.pitch (target length)
+            emit = new short[Math.max(n7, 1)];     // R10 = new short[R7]
+            int copy = Math.min(n7, n9);           // copy min(R7,R9)
+            System.arraycopy(prev, 0, emit, 0, copy);
+            if (n9 < n7) {                         // 0083-0101 bridge toward R8[0]
+                int last = emit[n9 - 1];           // R11 = R10[R9-1]
+                int nv = cur[0];                   // R12 = R8[0]
+                int delta = nv - last;             // R13 = R8[0]-R10[R9-1]
+                int span = n7 - n9;                // R14 = R7-R9
+                for (int k = 0; k < span; k++)     // for R18 = 0 .. R14-1 (inclusive)
+                    // R10[R9+R18] = R11 + (R18+1)*R13/(R14+1)
+                    emit[n9 + k] = (short) (last + (long) (k + 1) * delta / (span + 1));
             }
         } else {
-            emit = buf;                                     // unvoiced: verbatim
+            emit = prev;                           // unvoiced: R5 stays = prev.buffer
         }
-        if (next != null) root45(emit, next);               // root.45 join
-        outPeriods.add(emit);
+        root45(emit, cur);                         // 0103-0106 join (mutates emit & cur)
+        outPeriods.add(emit);                      // 0107-0110 emit rebuilt prev
+        emitPrevBuf = cur; prevVoiced = (typBit == 1); prevPitch = target;  // 0111-0115
+    }
+
+    /** root.48 flush (0117-0128): emit the stashed final period verbatim (no rebuild,
+     *  no join). Called once at end of utterance. */
+    private void flushPeriod() {
+        if (emitPrevBuf != null) outPeriods.add(emitPrevBuf);
+        emitPrevBuf = null;
     }
 
     /** voicesynth root.47 (line 754): slew the pitch accumulator one step toward
@@ -459,37 +468,46 @@ public final class DiphoneSynth {
         else if (slew > 100) slew = 100;                    // 0066-0070
     }
 
-    /** Join-smoothing filter, faithful port of voicesynth root.45: two passes
-     *  (window +-4 then +-8) of 2-tap averaging across the seam between period
-     *  buffers b0|b1 (b1 follows b0). A 0 sample is treated as absent (the
-     *  original's truthiness quirk). Modifies b0/b1 in place. */
+    /** Literal port of voicesynth root.45 (line 661): two passes (window +-4 then
+     *  +-8) of 2-tap averaging across the seam between buffers b0 (R0) and b1 (R1),
+     *  where b1 conceptually follows b0. For each j in [-w,w] (guarded by
+     *  -j < n0-1 and j < n1-1) it writes the midpoint of the left and right
+     *  neighbours of the seam position into s[c+1] (c=(n0-1)+j). The original reads
+     *  the left/right neighbour from b0 when that index is inside b0 AND the sample
+     *  is non-zero, otherwise from b1 at the mirrored index (the engine's `if R0[k]
+     *  then .. else R1[..]` truthiness quirk). Modifies b0/b1 in place. */
     private static void root45(short[] b0, short[] b1) {
-        // The two period buffers form one virtual stream s = b0 || b1 (b1 follows
-        // b0). For the seam neighbourhood the filter writes the midpoint:
-        //   s[c+1] = (s[c] + s[c+2]) / 2,  c = (n0-1)+j,  j in [-w, w]
-        // (a 0 sample is treated as absent and skipped — the original's truthiness
-        // quirk). Guarded so reads/writes stay inside [0, n0+n1).
-        int n0 = b0.length, n1 = b1.length, n = n0 + n1;
-        for (int pass = 1; pass <= 2; pass++) {
+        int n0 = b0.length, n1 = b1.length;
+        for (int pass = 1; pass <= 2; pass++) {           // R7 = 1..2
             int w = 4 * pass;
-            for (int j = -w; j <= w; j++) {
-                if (!(-j < n0 - 1 && j < n1 - 1)) continue;
-                int c = (n0 - 1) + j;
-                if (c < 0 || c + 2 >= n) continue;
-                int left = streamGet(b0, b1, n0, c);
-                if (left == 0) left = streamGet(b0, b1, n0, c);   // (quirk no-op)
-                int right = streamGet(b0, b1, n0, c + 2);
-                int mid = (left + right) / 2;
-                streamSet(b0, b1, n0, c + 1, (short) mid);
+            for (int j = -w; j <= w; j++) {               // R11 = -4*R7 .. 4*R7
+                if (!(-j < n0 - 1 && j < n1 - 1)) continue;          // 0017-0023
+                int c = (n0 - 1) + j;                                 // R12 = (n0-1)+j
+                // left neighbour R13 (0024-0035). b1[j-1]/b1[j+1] fallbacks at j<=0
+                // are dead in practice (only taken when b0[k]==0, which does not occur
+                // at these positions); guard the index to avoid an OOB read.
+                int left;
+                if (c > n0 - 1) {                                     // j > 0 -> b1[j-1]
+                    left = b1[j - 1];
+                } else {                                             // b0[c] if !=0 else b1[j-1]
+                    left = b0[c];
+                    if (left == 0 && j - 1 >= 0 && j - 1 < n1) left = b1[j - 1];
+                }
+                // right neighbour R14 (0036-0046): index c+2 = (n0+1)+j
+                int r = c + 2;
+                int right;
+                if (r > n0 - 1) {                                     // j > -2 -> b1[j+1]
+                    right = b1[j + 1];
+                } else {                                             // b0[r] if !=0 else b1[j+1]
+                    right = b0[r];
+                    if (right == 0 && j + 1 >= 0 && j + 1 < n1) right = b1[j + 1];
+                }
+                int mid = (left + right) / 2;                         // 0047-0048
+                // write s[c+1] (0049-0055): b1[j] if c >= n0-1 (j>=0) else b0[c+1]
+                if (c >= n0 - 1) b1[j] = (short) mid;
+                else b0[c + 1] = (short) mid;
             }
         }
-    }
-
-    private static int streamGet(short[] b0, short[] b1, int n0, int i) {
-        return i < n0 ? b0[i] : b1[i - n0];
-    }
-    private static void streamSet(short[] b0, short[] b1, int n0, int i, short v) {
-        if (i < n0) b0[i] = v; else b1[i - n0] = v;
     }
 
     /** Concatenate pitch periods with a tiny crossfade at each period boundary to
