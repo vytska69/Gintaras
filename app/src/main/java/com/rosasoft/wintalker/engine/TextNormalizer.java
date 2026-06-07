@@ -224,7 +224,12 @@ public final class TextNormalizer {
     public List<Token> normalize(String raw, Settings st) {
         List<Token> out = new ArrayList<>();
         String text = transliterate(raw);
-        for (String tok : tokenize(text)) {
+        List<String> toks = tokenize(text);
+        // A single-token input is a lone letter being read on its own (e.g. a
+        // TalkBack keystroke) — only then do we spell a single letter by name; in a
+        // sentence a one-letter token (o, į, …) is a real word and is read normally.
+        boolean wholeIsSingle = toks.size() == 1;
+        for (String tok : toks) {
             if (tok.isEmpty()) continue;
             if (tok.length() == 1 && PUNCT.indexOf(tok.charAt(0)) >= 0) {
                 char ch = tok.charAt(0);
@@ -237,14 +242,18 @@ public final class TextNormalizer {
                 out.add(new Token(word, ch, false));
                 continue;
             }
-            // a lone letter or all-caps acronym → spell path
-            if (isSpellable(tok)) {
+            // Spell path: a lone typed letter (whole input) or an all-caps acronym
+            // (anywhere) → read each letter by its name.
+            boolean loneLetter = wholeIsSingle && tok.length() == 1
+                    && Character.isLetter(tok.charAt(0));
+            boolean acronym = tok.length() > 1 && isAllUpper(tok) && hasNoDigit(tok);
+            if (loneLetter || acronym) {
                 for (String letter : spellLetters(tok))
                     out.add(new Token(letter, (char) 0, true));
                 continue;
             }
-            // numbers + std dictionary
-            String expanded = numbers.expand(tok, st.numgroup);
+            // Word path: substitute non-Lithuanian x/q/w, then numbers + dictionary.
+            String expanded = numbers.expand(subAlien(tok), st.numgroup);
             for (String w : expanded.split("\\s+")) {
                 if (w.isEmpty()) continue;
                 String spoken = st.useDictionary ? applyStd(w) : w;
@@ -252,6 +261,11 @@ public final class TextNormalizer {
             }
         }
         return out;
+    }
+
+    private static boolean hasNoDigit(String s) {
+        for (int i = 0; i < s.length(); i++) if (Character.isDigit(s.charAt(i))) return false;
+        return true;
     }
 
     private static int clampLevel(int lvl) {
@@ -316,17 +330,57 @@ public final class TextNormalizer {
         return true;
     }
 
-    /** Read a spell token letter by letter, applying the (usually empty) custom
-     *  spell map; with no custom mapping each letter is read by its own name (the
-     *  letter itself, which the Transcriber voices). */
+    /** Read a spell token letter by letter. Each letter becomes its spoken NAME:
+     *  the custom spelllit.dct first, else the built-in Lithuanian letter name
+     *  ({@link #LETTER_NAMES}). A lone consonant otherwise produces only a brief
+     *  unintelligible burst; the name ("bė","es","ka"…) is what is expected, e.g.
+     *  when typing on the TalkBack keyboard. */
     List<String> spellLetters(String tok) {
         List<String> out = new ArrayList<>();
         for (int i = 0; i < tok.length(); i++) {
-            String letter = String.valueOf(tok.charAt(i));
-            String mapped = spell.get(letter.toLowerCase());
-            out.add(mapped != null ? mapped : letter);
+            String key = String.valueOf(Character.toLowerCase(tok.charAt(i)));
+            String mapped = spell.get(key);
+            if (mapped == null) mapped = LETTER_NAMES.get(key);
+            out.add(mapped != null ? mapped : String.valueOf(tok.charAt(i)));
         }
         return out;
+    }
+
+    /** Lithuanian (and foreign) letter NAMES for spelled-out letters. Non-Lithuanian
+     *  letters get their Lithuanian names (x→"iks", q→"kū", w→"dviguboji vė"). The
+     *  names flow back through the normal transcriber. */
+    private static final Map<String, String> LETTER_NAMES = new java.util.HashMap<>();
+    static {
+        String[][] n = {
+            {"a","a"},{"ą","a nosinė"},{"b","bė"},{"c","cė"},{"č","čė"},{"d","dė"},
+            {"e","e"},{"ę","e nosinė"},{"ė","ė"},{"f","ef"},{"g","gė"},{"h","ha"},
+            {"i","i"},{"į","i nosinė"},{"y","i ilgoji"},{"j","jot"},{"k","ka"},
+            {"l","el"},{"m","em"},{"n","en"},{"o","o"},{"p","pė"},{"r","er"},
+            {"s","es"},{"š","eš"},{"t","tė"},{"u","u"},{"ų","u nosinė"},
+            {"ū","u ilgoji"},{"v","vė"},{"z","zė"},{"ž","žė"},
+            {"w","dviguboji vė"},{"x","iks"},{"q","kū"},
+        };
+        for (String[] e : n) LETTER_NAMES.put(e[0], e[1]);
+    }
+
+    /** Substitute the non-Lithuanian letters x/q/w with their phonetic reading when
+     *  they appear INSIDE a word (the transcriber drops them otherwise): x→"ks",
+     *  q→"k", w→"v" (e.g. taxi→taksi, watas→vatas). Case preserved approximately. */
+    static String subAlien(String w) {
+        if (w.indexOf('x') < 0 && w.indexOf('X') < 0 && w.indexOf('q') < 0
+                && w.indexOf('Q') < 0 && w.indexOf('w') < 0 && w.indexOf('W') < 0)
+            return w;
+        StringBuilder b = new StringBuilder(w.length() + 2);
+        for (int i = 0; i < w.length(); i++) {
+            char c = w.charAt(i);
+            switch (c) {
+                case 'x': b.append("ks"); break; case 'X': b.append("KS"); break;
+                case 'q': b.append('k');  break; case 'Q': b.append('K');  break;
+                case 'w': b.append('v');  break; case 'W': b.append('V');  break;
+                default:  b.append(c);
+            }
+        }
+        return b.toString();
     }
 
     /** Apply the std dictionary with the trailing-wildcard stem match (dictconv,
