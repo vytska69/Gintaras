@@ -5,12 +5,18 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Diphone-concatenation synthesiser. Turns a phoneme sequence (from the
- * transcriber) into 16-bit PCM by selecting diphone units from the voice database
- * and concatenating their pitch-period sample blocks.
+ * Diphone-concatenation synthesiser with the original engine's PSOLA pitch/tempo
+ * control. Turns a phoneme sequence (from the transcriber) into 16-bit PCM by
+ * selecting diphone units from the voice database and running the original
+ * voicesynth DSP pipeline over their recorded pitch-period blocks.
  *
- * This is the first audible stage (plain concatenation, no pitch modification).
- * PSOLA pitch/duration control is layered on afterwards as the quality pass.
+ * The DSP ({@link #synthesizeUnits}) is a literal, sample-accurate port of the
+ * decompiled engine modules (engine/decompiled/voicesynth.decomp.txt):
+ * root.51.1 (count expander) -> root.51 (tempo accumulator) -> root.52/52.5
+ * (voiced/unvoiced dispatch) -> root.49 (per-period emit) -> root.48 (per-period
+ * pitch regeneration) + root.47 (pitch slew) -> root.45 (join filter) -> root.50
+ * (trailing silence). Validated byte-for-byte against the per-period oracle
+ * (tools/literal_port/dsp_oracle/) and the reference PCM.
  *
  * Diphone keys: the engine forms boundary-aware overlapping units from the phoneme
  * stream. For "_ l aA b aA s _" the units are roughly "-l", "la", "ab", "ba",
@@ -21,17 +27,12 @@ public final class DiphoneSynth {
 
     public static final int SAMPLE_RATE = 22050;
 
-    /** Engine base pitch period (prosody table P0[5] = 220 samples ≈ 100 Hz). The
-     *  recorded voiced periods sit a little shorter (higher) than this; proto7
-     *  steps them toward this base. */
+    /** Base pitch period in samples: floor(P0[5] * 100/pitch) = 220 at pitch=100
+     *  (P0[5]=220, voicesynth loadvoice root.43 line 0187; root.48 line 0001-0008). */
     private static final int BASE_PERIOD = 220;
 
-    /** P0.Prosody = P0[1]+P0[2] = 20 (voicesynth loadvoice root.43). */
+    /** P0.Prosody = P0[1]+P0[2] = 20 (voicesynth loadvoice root.43 line 0035-0038). */
     private static final int PROSODY = 20;
-    /** P1.ProsodyChange = {0,50,10,20,50,160}: root.47 slews toward PC[6]=160 over
-     *  the first half of a word, then PC[3]=10 over the second. */
-    private static final int PC_EARLY = 160;   // PC[6]
-    private static final int PC_LATE = 10;     // PC[3]
 
     private final VoiceDatabase db;
     private final Map<String, VoiceDatabase.Entry> index;
@@ -42,95 +43,22 @@ public final class DiphoneSynth {
         this.index = db.diphoneIndex();
     }
 
-    /**
-     * proto7 DSP, simplified: steady the pitch of voiced periods by linearly
-     * interpolating each voiced period to the unit's mean voiced-period length;
-     * leave unvoiced (consonant/noise) periods exactly as recorded. Returns plain
-     * waveforms ready for concatenation.
-     */
-    private static List<short[]> smoothVoiced(List<VoiceDatabase.Period> ps) {
-        List<short[]> out = new ArrayList<>(ps.size());
-        // mean length of voiced periods in this unit
-        long sum = 0; int nv = 0;
-        for (VoiceDatabase.Period p : ps) if (p.voiced) { sum += p.samples.length; nv++; }
-        int target = nv > 0 ? (int) (sum / nv) : 0;
-        for (VoiceDatabase.Period p : ps) {
-            if (p.voiced && target > 0 && p.samples.length != target) {
-                out.add(lerpResample(p.samples, target));
-            } else {
-                out.add(p.samples);
-            }
-        }
-        return out;
-    }
-
-    /** Smooth a unit seam in place, mirroring the original's join filter (root.45):
-     *  two passes of 2-tap neighbour averaging centred on the seam, widening the
-     *  window ±4 then ±8 samples. This rounds off the step discontinuity between
-     *  concatenated demi-syllables without touching the unit interiors. */
-    private static void smoothSeam(short[] pcm, int seam) {
-        for (int pass = 1; pass <= 2; pass++) {
-            int w = 4 * pass;
-            int lo = Math.max(1, seam - w), hi = Math.min(pcm.length - 1, seam + w);
-            for (int i = lo; i < hi; i++)
-                pcm[i] = (short) ((pcm[i] + pcm[i + 1]) / 2);
-        }
-    }
-
-    /** Median sample-length of the voiced periods in a sequence (0 if none). */
-    private static int medianVoicedLength(List<VoiceDatabase.Period> ps) {
-        List<Integer> v = new ArrayList<>();
-        for (VoiceDatabase.Period p : ps) if (p.voiced) v.add(p.samples.length);
-        if (v.isEmpty()) return 0;
-        java.util.Collections.sort(v);
-        return v.get(v.size() / 2);
-    }
-
-    /** Linear frame interpolation, exactly per voicesynth root.44: the j-th of `n`
+    /** Linear frame interpolation, voicesynth root.44 (line 612): the j-th of `n`
      *  frames between data and data2 is out[i] = ((n-1-j)*data[i] + j*data2[i])/(n-1),
-     *  over min(len(data),len(data2)) samples rounded down to even. j=0 -> data,
-     *  j=n-1 -> data2. Used to render a count>1 voiced frame as `count` periods. */
+     *  over floor(min(len(data),len(data2))/2)*2 samples. j=0 -> data, j=n-1 -> data2.
+     *  Renders the interior periods of a count>1 voiced run (root.49). */
     private static short[] interpFrame(short[] data, short[] data2, int n, int j) {
         int len = Math.min(data.length, data2.length);
-        len &= ~1;                              // floor to even (root.44)
+        len &= ~1;                              // floor(min/2)*2 (root.44 0015-0021)
         if (len == 0) return data;
         if (n <= 1) return java.util.Arrays.copyOf(data, len);
         int w0 = (n - 1) - j, w1 = j, denom = n - 1;
         short[] out = new short[len];
         for (int i = 0; i < len; i++)
+            // ((n-1-j)*data + j*data2)/(n-1): integer division truncates toward zero,
+            // identical to Lua's float divide followed by the int16 store.
             out[i] = (short) ((w0 * data[i] + w1 * data2[i]) / denom);
         return out;
-    }
-
-    /** Extend a voiced period to `target` samples by appending a linear bridge from
-     *  the period's last sample to `next` (the following period's first sample),
-     *  exactly as voicesynth root.48 does: out[L+j] = last + (j+1)*(next-last)/(span+1).
-     *  The recorded samples are copied verbatim, so the period's spectrum (timbre)
-     *  is preserved — only the pitch period is lengthened. Never compresses. */
-    private static short[] extendPeriod(short[] s, int target, short next) {
-        int L = s.length;
-        if (L >= target || L == 0) return s;
-        int span = target - L;
-        short[] out = new short[target];
-        System.arraycopy(s, 0, out, 0, L);
-        int last = s[L - 1];
-        int delta = next - last;
-        for (int j = 0; j < span; j++)
-            out[L + j] = (short) (last + (long) (j + 1) * delta / (span + 1));
-        return out;
-    }
-
-    /** Linear-interpolate a period to `len` samples (proto7's voiced resample). */
-    private static short[] lerpResample(short[] src, int len) {
-        short[] dst = new short[len];
-        if (src.length == 0) return dst;
-        for (int i = 0; i < len; i++) {
-            float pos = (float) i * (src.length - 1) / (len - 1 > 0 ? len - 1 : 1);
-            int i0 = (int) pos, i1 = Math.min(i0 + 1, src.length - 1);
-            float f = pos - i0;
-            dst[i] = (short) (src[i0] * (1 - f) + src[i1] * f);
-        }
-        return dst;
     }
 
     /** Look up a unit by name, trying the exact key then simpler fallbacks. */
@@ -513,110 +441,6 @@ public final class DiphoneSynth {
         }
     }
 
-    /** Concatenate pitch periods with a tiny crossfade at each period boundary to
-     *  suppress step discontinuities (crackle) while keeping full length. */
-    private static short[] concatPeriodsSmooth(List<short[]> periods, int xf) {
-        if (periods.isEmpty()) return new short[0];
-        int total = 0;
-        for (short[] p : periods) total += p.length;
-        total -= xf * Math.max(0, periods.size() - 1);
-        short[] out = new short[Math.max(total, 0)];
-        int pos = 0;
-        for (int k = 0; k < periods.size(); k++) {
-            short[] p = periods.get(k);
-            int start = 0;
-            if (k > 0) {
-                int n = Math.min(xf, Math.min(p.length, pos));
-                int base = pos - n;
-                for (int j = 0; j < n; j++) {
-                    float t = (float) j / n;
-                    int mixed = (int) (out[base + j] * (1 - t) + p[j] * t);
-                    out[base + j] = (short) Math.max(-32768, Math.min(32767, mixed));
-                }
-                start = n;
-            }
-            for (int j = start; j < p.length && pos < out.length; j++) out[pos++] = p[j];
-        }
-        return java.util.Arrays.copyOf(out, pos);
-    }
-
-    /** Peak amplitude of the first/last `n` samples of a segment. */
-    private static int edgePeak(short[] s, boolean start, int n) {
-        int peak = 0, m = Math.min(n, s.length);
-        for (int i = 0; i < m; i++) {
-            int v = Math.abs(start ? s[i] : s[s.length - 1 - i]);
-            if (v > peak) peak = v;
-        }
-        return peak;
-    }
-
-    /** Equalise loudness across joins: for each adjacent pair, ramp the tail of
-     *  the left segment and the head of the right segment toward their mean edge
-     *  amplitude, so the transition has no sudden loudness step. */
-    private static void levelJoins(List<short[]> segs) {
-        final int W = 600; // ~27 ms blend region each side of a join
-        for (int k = 0; k + 1 < segs.size(); k++) {
-            short[] L = segs.get(k), R = segs.get(k + 1);
-            int lp = edgePeak(L, false, W), rp = edgePeak(R, true, W);
-            if (lp < 200 || rp < 200) continue; // skip near-silent edges
-            float target = (lp + rp) / 2f;
-            scaleEdge(L, false, W, target / lp);
-            scaleEdge(R, true, W, target / rp);
-        }
-    }
-
-    /** Scale the first/last `n` samples of `s` by a gain that ramps from 1.0 at
-     *  the interior to `g` at the very edge (so the interior is untouched). */
-    private static void scaleEdge(short[] s, boolean start, int n, float g) {
-        int m = Math.min(n, s.length);
-        for (int i = 0; i < m; i++) {
-            float t = (float) i / m;            // 0 at edge … 1 at interior end
-            float gain = g * (1 - t) + 1f * t;  // edge=g, interior=1
-            int idx = start ? i : s.length - 1 - i;
-            s[idx] = (short) Math.max(-32768, Math.min(32767, Math.round(s[idx] * gain)));
-        }
-    }
-
-    /** Tiny click guard at start (8 samples — preserves onset loudness) and a
-     *  longer fade-out at the end. */
-    private static void applyFades(short[] pcm, int n) {
-        int head = Math.min(8, pcm.length / 2);   // just enough to avoid the click
-        for (int i = 0; i < head; i++) pcm[i] = (short) (pcm[i] * ((float) i / head));
-        int tail = Math.min(n, pcm.length / 2);
-        for (int i = 0; i < tail; i++)
-            pcm[pcm.length - 1 - i] = (short) (pcm[pcm.length - 1 - i] * ((float) i / tail));
-    }
-
-    /** Concatenate segments with a linear crossfade of `xf` samples at each join. */
-    private static short[] overlapAdd(List<short[]> segs, int xf) {
-        if (segs.isEmpty()) return new short[0];
-        int total = 0;
-        for (short[] s : segs) total += s.length;
-        total -= xf * Math.max(0, segs.size() - 1);
-        short[] out = new short[Math.max(total, 0)];
-        int pos = 0;
-        for (int k = 0; k < segs.size(); k++) {
-            short[] s = segs.get(k);
-            int start = 0;
-            if (k > 0) {
-                // crossfade the first xf samples of s into the tail of out
-                int n = Math.min(xf, s.length);
-                int base = pos - n;
-                for (int j = 0; j < n; j++) {
-                    if (base + j < 0 || base + j >= out.length) continue;
-                    float t = (float) j / n;
-                    int mixed = (int) (out[base + j] * (1 - t) + s[j] * t);
-                    out[base + j] = (short) Math.max(-32768, Math.min(32767, mixed));
-                }
-                start = n;
-            }
-            for (int j = start; j < s.length; j++) {
-                if (pos < out.length) out[pos++] = s[j];
-            }
-        }
-        return java.util.Arrays.copyOf(out, pos);
-    }
-
     /** Try a unit name with short↔long vowel substitutions on each vowel char. */
     private VoiceDatabase.Entry lookupRelaxed(String name) {
         char[] cs = name.toCharArray();
@@ -632,16 +456,6 @@ public final class DiphoneSynth {
                 }
                 cs[i] = orig;
             }
-        }
-        return null;
-    }
-
-    /** Try "-XY" with short↔long vowel substitutions before giving up. */
-    private VoiceDatabase.Entry lookupFlexible(char a, char b) {
-        char[] altA = vowelAlts(a), altB = vowelAlts(b);
-        for (char ca : altA) for (char cb : altB) {
-            VoiceDatabase.Entry e = lookup("-" + ca + cb);
-            if (e != null) return e;
         }
         return null;
     }

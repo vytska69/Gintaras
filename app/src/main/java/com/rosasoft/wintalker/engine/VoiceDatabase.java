@@ -226,41 +226,6 @@ public final class VoiceDatabase {
         return out;
     }
 
-    /** One pitch period plus its type bit (bit0 = voiced) and its record `count`
-     *  (the number of pitch periods the original interpolates for this frame —
-     *  voicesynth root.49/root.52.5; count<=1 = a single frame). */
-    public static final class Period {
-        public final short[] samples;
-        public final boolean voiced;
-        public final int count;
-        Period(short[] samples, boolean voiced, int count) {
-            this.samples = samples; this.voiced = voiced; this.count = count;
-        }
-    }
-
-    /** A unit's periods carrying the voiced flag (typ&1), resolving aliases.
-     *  The original DSP (proto7) pitch-interpolates voiced periods only and
-     *  passes unvoiced (consonant/noise) periods through unchanged. */
-    public List<Period> unitTypedPeriods(Entry e) {
-        return unitTypedPeriods(e, 0);
-    }
-
-    private List<Period> unitTypedPeriods(Entry e, int depth) {
-        List<Period> out = new ArrayList<>();
-        if (e == null || depth > 4) return out;
-        if (e.records.size() == 1 && !e.records.get(0).isNumeric()) {
-            Entry t = diphoneIndex().get(unitName(e.records.get(0).stringKey));
-            if (t != null && t != e) return unitTypedPeriods(t, depth + 1);
-            return out;
-        }
-        for (Record r : e.records)
-            if (r.isNumeric()) {
-                SampleBlock b = blocks.get(r.numKey);
-                if (b != null) out.add(new Period(b.samples, (r.typ & 1) != 0, r.count));
-            }
-        return out;
-    }
-
     /** A leaf sample block expanded from a unit by root.51.1, with the (possibly
      *  fractional) record count and the voiced bit (typ&1) it should be played at. */
     public static final class LeafRec {
