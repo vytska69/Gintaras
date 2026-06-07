@@ -10,3 +10,5 @@
 
 pub mod voicedb;
 pub mod transcriber;
+pub mod conversion;
+pub mod sequencer;
