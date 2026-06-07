@@ -126,6 +126,16 @@ public class TtsService extends TextToSpeechService {
         stop = false;
         callback.start(SAMPLE_RATE, android.media.AudioFormat.ENCODING_PCM_16BIT, 1);
 
+        // Speech rate (speed) and pitch (timbre) as Android passes them: percentages
+        // where 100 = normal (set by the user in TTS/accessibility settings, TalkBack
+        // or the in-app slider). The engine applies them per the original (root.53/48):
+        // tempo = 0.62*pitch/rate, base period = round(220*100/pitch).
+        int rate = request.getSpeechRate() > 0 ? request.getSpeechRate() : 100;
+        int sysPitch = request.getPitch() > 0 ? request.getPitch() : 100;
+        // Combine the system/per-request pitch with the app's "Tembras" setting
+        // (default 100 = no change), so the in-app/Settings timbre control works too.
+        int pitch = sysPitch * appPitchPref() / 100;
+
         // Text-normalization ("reading") layer, ported from voicesynth root.53:
         // transliterate (ruleslit), tokenize keeping punctuation, then per token
         // apply the std dictionary, number expansion (numgroup) and the selected
@@ -162,7 +172,7 @@ public class TtsService extends TextToSpeechService {
                 continue;
             }
             List<String> phonemes = Transcriber.transcribe(w, w.length);
-            short[] pcm = synth.synthesize(phonemes.toArray(new String[0]));
+            short[] pcm = synth.synthesize(phonemes.toArray(new String[0]), rate, pitch);
             if (!writePcm(callback, pcm)) break;
             short[] gap = sentenceEnd || isLast ? sentPause : (tk.spell ? spellPause : wordPause);
             if (!writePcm(callback, gap)) break;
@@ -187,6 +197,15 @@ public class TtsService extends TextToSpeechService {
             // keep defaults
         }
         return st;
+    }
+
+    /** The app's "Tembras" (pitch) setting as a percentage (default 100 = normal). */
+    private int appPitchPref() {
+        try {
+            return parseIntPref(PreferenceManager.getDefaultSharedPreferences(this), "pitch", 100);
+        } catch (Exception e) {
+            return 100;
+        }
     }
 
     /** ListPreference values are stored as strings; parse to int with a default. */

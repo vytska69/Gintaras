@@ -47,22 +47,39 @@
                     android:text="@string/sample_text" />
             </com.google.android.material.textfield.TextInputLayout>
 
+            <TextView
+                android:id="@+id/rateLabel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="@string/speech_rate"
+                android:textAppearance="?attr/textAppearanceLabelMedium" />
+
             <com.google.android.material.slider.Slider
                 android:id="@+id/rateSlider"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
                 android:valueFrom="0.5"
                 android:valueTo="2.0"
                 android:stepSize="0.1"
                 android:value="1.0" />
 
             <TextView
-                android:id="@+id/rateLabel"
+                android:id="@+id/pitchLabel"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/speech_rate"
+                android:layout_marginTop="8dp"
+                android:text="@string/pitch"
                 android:textAppearance="?attr/textAppearanceLabelMedium" />
+
+            <com.google.android.material.slider.Slider
+                android:id="@+id/pitchSlider"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:valueFrom="0.5"
+                android:valueTo="2.0"
+                android:stepSize="0.1"
+                android:value="1.0" />
 
             <LinearLayout
                 android:layout_width="match_parent"

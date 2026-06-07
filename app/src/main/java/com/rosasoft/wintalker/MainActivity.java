@@ -34,6 +34,9 @@ public class MainActivity extends AppCompatActivity {
 
     private TextInputEditText input;
     private Slider rateSlider;
+    private Slider pitchSlider;
+    private TextView rateLabel;
+    private TextView pitchLabel;
     private TextView status;
     private TextView diag;
 
@@ -51,8 +54,19 @@ public class MainActivity extends AppCompatActivity {
 
         input = findViewById(R.id.inputText);
         rateSlider = findViewById(R.id.rateSlider);
+        pitchSlider = findViewById(R.id.pitchSlider);
+        rateLabel = findViewById(R.id.rateLabel);
+        pitchLabel = findViewById(R.id.pitchLabel);
         status = findViewById(R.id.statusText);
         diag = findViewById(R.id.diagText);
+
+        // Live value labels for the speed / timbre sliders.
+        rateLabel.setText(getString(R.string.speech_rate) + ": " + fmt(rateSlider.getValue()));
+        pitchLabel.setText(getString(R.string.pitch) + ": " + fmt(pitchSlider.getValue()));
+        rateSlider.addOnChangeListener((s, v, u) ->
+                rateLabel.setText(getString(R.string.speech_rate) + ": " + fmt(v)));
+        pitchSlider.addOnChangeListener((s, v, u) ->
+                pitchLabel.setText(getString(R.string.pitch) + ": " + fmt(v)));
 
         MaterialButton speak = findViewById(R.id.speakButton);
         MaterialButton stop = findViewById(R.id.stopButton);
@@ -142,6 +156,7 @@ public class MainActivity extends AppCompatActivity {
         CharSequence text = input.getText();
         if (TextUtils.isEmpty(text)) return;
         tts.setSpeechRate(rateSlider.getValue());
+        tts.setPitch(pitchSlider.getValue());
         int r = tts.speak(text.toString(), TextToSpeech.QUEUE_FLUSH, null, "preview");
         logLine("speak(\"" + text + "\") returned " + r
                 + (r == TextToSpeech.SUCCESS ? " (queued)" : " (FAILED)"));
@@ -249,6 +264,11 @@ public class MainActivity extends AppCompatActivity {
             sb.append("logcat read failed: ").append(e).append('\n');
         }
         return sb.toString();
+    }
+
+    /** Format a slider multiplier as e.g. "1.0×". */
+    private static String fmt(float v) {
+        return String.format(Locale.US, "%.1f×", v);
     }
 
     private void logLine(String line) {

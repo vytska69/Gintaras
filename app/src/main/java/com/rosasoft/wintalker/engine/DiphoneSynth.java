@@ -74,6 +74,19 @@ public final class DiphoneSynth {
      * unit for every adjacent phoneme pair and concatenate their waveforms.
      */
     public short[] synthesize(String[] phonemes) {
+        return synthesize(phonemes, 100, 100);
+    }
+
+    /**
+     * Synthesize with a speech {@code rate} and {@code pitch} (both percentages,
+     * 100 = normal — exactly the values Android passes via SynthesisRequest). At
+     * 100/100 this is byte-identical to the original. Per the original (root.53/51/48):
+     * the per-period tempo (count multiplier) is {@code 0.62 * pitch / rate} and the
+     * base pitch period is {@code round(220 * 100 / pitch)} — so higher pitch shortens
+     * the period (higher voice) while keeping duration, higher rate emits fewer
+     * periods (faster) keeping pitch.
+     */
+    public short[] synthesize(String[] phonemes, int rate, int pitch) {
         // Build the conversion code-unit string with the literal trans-conversion
         // port ({@link Conversion}, == the original trans root.8 + root.37.11).
         // This carries the special-letter code units, the diphthong short-vowel
@@ -85,7 +98,7 @@ public final class DiphoneSynth {
         String s = Conversion.convert(ps);
 
         if (sequencer == null) sequencer = new CandidateSequencer(db);
-        return synthesizeUnits(sequencer.sequence(s));
+        return synthesizeUnits(sequencer.sequence(s), rate, pitch);
     }
 
     // ===================== Literal voicesynth DSP port =====================
@@ -137,8 +150,23 @@ public final class DiphoneSynth {
         }
     }
 
-    /** Build PCM from an explicit engine unit-name sequence. */
+    /** Build PCM from an explicit engine unit-name sequence (rate=pitch=100). */
     public short[] synthesizeUnits(List<String> unitNames) {
+        return synthesizeUnits(unitNames, 100, 100);
+    }
+
+    /** Effective per-utterance pitch period and tempo, derived from rate/pitch. */
+    private int curBasePeriod = BASE_PERIOD;
+    private double curTempo = TEMPO_FACTOR;
+
+    /** Clamp a rate/pitch percentage to a sane range (avoids div-by-zero / extremes). */
+    private static int clampPct(int v) { return v < 25 ? 25 : (v > 400 ? 400 : v); }
+
+    /** Build PCM from an explicit unit sequence at the given rate/pitch (%, 100=normal). */
+    public short[] synthesizeUnits(List<String> unitNames, int rate, int pitch) {
+        int pPct = clampPct(pitch), rPct = clampPct(rate);
+        curBasePeriod = (int) Math.round(BASE_PERIOD * 100.0 / pPct); // root.48: floor(BASE*100/pitch)
+        curTempo = TEMPO_FACTOR * pPct / (double) rPct;              // root.53/51: 0.62*pitch/rate
         // ---- root.51.1: expand units -> flat leaf-record stream ----
         // Each unit-key resolves (with alias redirection) to its leaf sample blocks
         // carrying typ/count; the top-level count scale is 1 (root.51.1 incoming
@@ -165,7 +193,7 @@ public final class DiphoneSynth {
         double acc = 0;
         for (Rec r : recs) {
             if (r.voiced) {
-                acc += r.count * TEMPO_FACTOR;
+                acc += r.count * curTempo;
                 int n = (int) Math.floor(acc);
                 if (n >= 1) {
                     events.add(new Rec(r.data, true, n, r.unit));
@@ -309,7 +337,7 @@ public final class DiphoneSynth {
 
     /** voicesynth root.48 (line 845): per-period pitch regeneration. */
     private void root48(short[] data, int typBit, int phonecount, int phoneorder) {
-        int target = BASE_PERIOD;                 // floor(BASE * 100/pitch), pitch=100
+        int target = curBasePeriod;               // floor(BASE * 100/pitch)
         // root.48 0009-0012: root.47 is called UNCONDITIONALLY every period (the
         // args may be 0/nil). root.47 only re-selects its target when both args are
         // present, but it always advances the slew one step -> the pitch contour

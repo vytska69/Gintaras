@@ -2,56 +2,78 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
-    <PreferenceCategory app:title="@string/cat_voice">
+    <PreferenceCategory
+        app:iconSpaceReserved="false"
+        app:title="@string/cat_voice">
         <ListPreference
             android:defaultValue="@string/default_voice"
             android:entries="@array/listArray"
             android:entryValues="@array/listValues"
             android:key="@string/voice_lang"
             android:title="@string/voice_choice"
+            app:iconSpaceReserved="false"
+            app:singleLineTitle="false"
             app:useSimpleSummaryProvider="true" />
     </PreferenceCategory>
 
-    <PreferenceCategory app:title="@string/cat_speech">
+    <PreferenceCategory
+        app:iconSpaceReserved="false"
+        app:title="@string/cat_speech">
         <ListPreference
             android:defaultValue="0"
             android:entries="@array/puncArray"
             android:entryValues="@array/puncValues"
             android:key="punctuation"
-            android:title="@string/punctuation" />
+            android:title="@string/punctuation"
+            app:iconSpaceReserved="false"
+            app:singleLineTitle="false" />
         <ListPreference
             android:defaultValue="1"
             android:entries="@array/numArray"
             android:entryValues="@array/numValues"
             android:key="numgroup"
-            android:title="@string/number_processing" />
+            android:title="@string/number_processing"
+            app:iconSpaceReserved="false"
+            app:singleLineTitle="false" />
         <ListPreference
             android:defaultValue="100"
             android:entries="@array/pitchArray"
             android:entryValues="@array/pitchValues"
             android:key="pitch"
-            android:title="@string/pitch" />
+            android:title="@string/pitch"
+            app:iconSpaceReserved="false"
+            app:singleLineTitle="false" />
         <ListPreference
             android:defaultValue="100"
             android:entries="@array/pauseArray"
             android:entryValues="@array/pausewordValues"
             android:key="pause_word"
-            android:title="@string/pause_word" />
+            android:title="@string/pause_word"
+            app:iconSpaceReserved="false"
+            app:singleLineTitle="false" />
         <ListPreference
             android:defaultValue="100"
             android:entries="@array/pauseArray"
             android:entryValues="@array/pausesentenceValues"
             android:key="pause_sentence"
-            android:title="@string/pause_sentence" />
+            android:title="@string/pause_sentence"
+            app:iconSpaceReserved="false"
+            app:singleLineTitle="false" />
     </PreferenceCategory>
 
-    <PreferenceCategory app:title="@string/cat_dictionary">
+    <PreferenceCategory
+        app:iconSpaceReserved="false"
+        app:title="@string/cat_dictionary">
         <CheckBoxPreference
             android:defaultValue="true"
             android:key="use_dictionary"
-            android:title="@string/use_dictionary" />
+            android:title="@string/use_dictionary"
+            app:iconSpaceReserved="false"
+            app:singleLineTitle="false" />
         <Preference
             android:key="modify_dictionary"
-            android:title="@string/modify_dictionary" />
+            android:title="@string/modify_dictionary"
+            app:iconSpaceReserved="false"
+            app:singleLineTitle="false" />
     </PreferenceCategory>
 </PreferenceScreen>
