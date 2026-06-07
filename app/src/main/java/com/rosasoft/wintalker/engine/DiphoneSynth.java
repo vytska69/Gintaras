@@ -160,129 +160,147 @@ public final class DiphoneSynth {
         return synthesizeUnits(sequencer.sequence(s));
     }
 
-    // ===================== Faithful voicesynth DSP port =====================
-    // Re-derived by running the ORIGINAL LuaJIT voicesynth over Gintaras.dta and
-    // dumping every emitted pitch period (one yield per period). The structural
-    // assembly below mirrors voicesynth root.52/51/49/48/47/45 exactly; validated
-    // by cross-correlating Java PCM against the engine's reference PCM per word.
+    // ===================== Literal voicesynth DSP port =====================
+    // A faithful, byte-anchored port of the original 4-coroutine PSOLA pipeline
+    // (voicesynth root.51.1 / 51 / 52 / 49 / 48 / 47 / 45 / 46), validated against
+    // the per-period oracle in tools/literal_port/dsp_oracle/dsp_periods_*.tsv
+    // (one row per period the REAL engine yields from root.46).
     //
-    // Prosody constants from loadvoice (root.43) on the Gintaras voice:
-    //   BASE_PERIOD = P0[5] = 220          (base pitch period, samples)
-    //   PROSODY     = P0[1]+P0[2] = 20
-    //   ProsodyChange P1 = {0,50,10,20,50,160}; PC[3]=10, PC[6]=160 (1-based)
-    //   TEMPO       = P0[6]/100 = 0.62     (count-domain resample factor)
+    // Stage map (file: engine/decompiled/voicesynth.decomp.txt):
+    //   root.51   (line 1119): tempo. For each unit, expands its records
+    //             (root.51.1) and for every VOICED record accumulates
+    //             acc += count*tempo; when acc>=1 yields ONE event carrying
+    //             count=floor(acc) then acc-=floor(acc). Unvoiced yields count=nil.
+    //   root.52   (line 1260): dispatch. Pulls events; voiced records with
+    //             count>=1 go to root.52.5, others emit a single period (52.3).
+    //   root.52.5 (line 1366): pulls the NEXT event; interpolates current->next
+    //             over `count` periods (root.52.4 -> root.49), then makes the next
+    //             voiced record current (tailcall) or emits a trailing unvoiced one.
+    //   root.49   (line 1002): emits `count` periods: data (j=0), root.44 frames
+    //             (j=1..count-2), data2 (j=count-1), each via root.48.
+    //   root.48   (line  845): per-period regeneration. target pitch length =
+    //             floor(BASE * 100/pitch) + slew  (BASE=P0[5]=220, pitch=100 ->
+    //             scale 1). root.47 updates slew first. A voiced period is rebuilt
+    //             to its (previous) target length: recorded samples copied verbatim
+    //             (min(target,len)), tail bridged linearly toward the next period's
+    //             first sample. Unvoiced periods and the final period emit verbatim.
+    //   root.47   (line  754): slew toward target = -Prosody + PC/8, where PC is
+    //             P1.ProsodyChange[6] for the first half (phonecount/2 >= phoneorder)
+    //             else [3]. Step = rshift(diff,4)+1 up / -rshift(-diff,4) (>=1) down,
+    //             clamp +-100. Prosody=P0[1]+P0[2]=20.
+    //   root.45   (line  661): two-pass join filter (window +-4 then +-8) across the
+    //             seam between the rebuilt period and the next raw period.
+    //   tempo = P0[6]/100 = 0.62 (record.tempo in root.53 line 0208; pitch=rate=100).
     private static final double TEMPO_FACTOR = 0.62;
-    private static final int PC3 = 10, PC6 = 160;
+    private static final int PC3 = 10;     // P1.ProsodyChange[3]
+    private static final int PC6 = 160;    // P1.ProsodyChange[6]
+    /** P4.Silence (ms) — trailing silence after a single-word utterance (root.53
+     *  0373-0384). The oracle tail (441,2205,2205,2205 = 1 remainder + 3 full
+     *  22050Hz/100ms periods) fixes this at 320. */
+    private static final int SILENCE_MS = 320;
+
+    /** A flattened leaf record from root.51.1: one recorded sample block with its
+     *  voiced bit (typ&1), its record count and its source unit index (1-based,
+     *  root.51 loop var -> root.52 phoneorder). */
+    private static final class Rec {
+        final short[] data; final boolean voiced; final int count; final int unit;
+        Rec(short[] data, boolean voiced, int count, int unit) {
+            this.data = data; this.voiced = voiced; this.count = count; this.unit = unit;
+        }
+    }
 
     /** Build PCM from an explicit engine unit-name sequence. */
     public short[] synthesizeUnits(List<String> unitNames) {
-        // Resolve each unit to its records (Period{samples,voiced,count}).
-        List<List<VoiceDatabase.Period>> units = new ArrayList<>();
+        // ---- root.51.1: expand units -> flat leaf-record stream ----
+        // Each unit-key resolves (with alias redirection) to its leaf sample blocks
+        // carrying typ/count; the top-level count scale is 1 (root.51.1 incoming
+        // count is nil). unitIndex is root.51's loop variable -> phoneorder.
+        List<Rec> recs = new ArrayList<>();
+        int phonecount = 0;
         for (String name : unitNames) {
             VoiceDatabase.Entry e = lookup(name);
             if (e == null) e = lookupRelaxed(name);
             if (e == null) continue;
-            List<VoiceDatabase.Period> recs = db.unitTypedPeriods(e);
-            if (!recs.isEmpty()) units.add(recs);
+            List<VoiceDatabase.Period> ps = db.unitTypedPeriods(e);
+            if (ps.isEmpty()) continue;
+            phonecount++;
+            for (VoiceDatabase.Period p : ps)
+                recs.add(new Rec(p.samples, p.voiced, p.count <= 0 ? 1 : p.count, phonecount));
         }
-        if (units.isEmpty()) return new short[0];
+        if (recs.isEmpty()) return new short[0];
 
-        // ---- root.52/51: count-domain tempo resampler -> flat list of frames ----
-        // For each VOICED record accumulate count*TEMPO and emit floor() periods,
-        // dropping the fractional remainder (decimates ~38% of periods at 0.62).
-        // UNVOICED records pass through verbatim (no resampling). A voiced record
-        // with count>1 expands to `count` linear-interpolated frames (root.44 /
-        // root.52.5) before resampling.
-        List<short[]> frames = new ArrayList<>();
-        List<Boolean> voiced = new ArrayList<>();
-        List<Integer> frameUnit = new ArrayList<>();   // 1-based source unit index
+        // ---- root.51: tempo. Produce the event list consumed by root.52. ----
+        // Voiced record: acc += count*tempo; if acc>=1 emit one event with
+        //   count=floor(acc); acc-=floor(acc). Unvoiced: emit event with count=0.
+        // event.count==0 marks "single emit" (root.52 'not count or 1>=count').
+        List<Rec> events = new ArrayList<>();
         double acc = 0;
-        for (int ui = 0; ui < units.size(); ui++) {
-            List<VoiceDatabase.Period> recs = units.get(ui);
-            for (int ri = 0; ri < recs.size(); ri++) {
-                VoiceDatabase.Period p = recs.get(ri);
-                List<short[]> srcFrames = new ArrayList<>();
-                if (p.voiced && p.count > 1) {
-                    boolean nextVoiced = ri + 1 < recs.size() && recs.get(ri + 1).voiced
-                            && recs.get(ri + 1).samples.length > 0;
-                    short[] data2 = nextVoiced ? recs.get(ri + 1).samples : p.samples;
-                    for (int j = 0; j < p.count; j++)
-                        srcFrames.add(interpFrame(p.samples, data2, p.count, j));
-                } else {
-                    srcFrames.add(p.samples);
+        for (Rec r : recs) {
+            if (r.voiced) {
+                acc += (double) r.count * TEMPO_FACTOR;
+                int n = (int) Math.floor(acc);
+                if (n >= 1) {
+                    events.add(new Rec(r.data, true, n, r.unit));
+                    acc -= n;
                 }
-                if (p.voiced) {
-                    for (short[] sf : srcFrames) {
-                        acc += TEMPO_FACTOR;
-                        int emit = (int) Math.floor(acc);
-                        for (int q = 0; q < emit; q++) {
-                            frames.add(sf); voiced.add(Boolean.TRUE); frameUnit.add(ui + 1);
-                        }
-                        acc -= emit;
-                    }
-                } else {
-                    for (short[] sf : srcFrames) {
-                        frames.add(sf); voiced.add(Boolean.FALSE); frameUnit.add(ui + 1);
-                    }
-                }
+                // acc<1: record contributes no event this step (period dropped).
+            } else {
+                events.add(new Rec(r.data, false, 0, r.unit));
             }
         }
-        if (frames.isEmpty()) return new short[0];
+        if (events.isEmpty()) return new short[0];
 
-        // ---- root.48 + root.47: per-period pitch regeneration ----
-        // Each voiced period is rebuilt at target pitch length = BASE + accumulator,
-        // the accumulator slewing per period via root.47. Recorded samples are copied
-        // verbatim (timbre preserved) into the target-length buffer; if shorter, a
-        // linear bridge ramps the tail toward the next period's first sample. Unvoiced
-        // periods emit verbatim. root.45 smooths each period seam. Output buffers are
-        // appended in order (root.46).
-        // Pitch arch via root.47: the slew target is PC[3] (period falls) for the
-        // first half of the word and PC[6] (recover to base) for the second half,
-        // keyed by the SOURCE UNIT index (root.52 sets phonecount=#units,
-        // phoneorder=unit index; root.47 fires per emitted period). This reproduces
-        // the original's shallow per-word pitch arch.
-        int phonecount = units.size();      // root.52: phonecount = #units
+        // ---- root.52 + 52.5 + 49 + 48 + 47 + 45 + 46: emit periods ----
+        slew = 0;
+        slewTarget = 0;       // root.47 UV1, persists between calls
+        emitPrevBuf = null;   // root.48 UV5 (prev period state)
+        outPeriods = new ArrayList<>();
 
-        pitchAcc = 0;
-        pitchTarget = 0;
-        short[] prevBuf = null;
-        boolean prevVoiced = false;
-        int prevPitch = 0;
-        List<short[]> outPeriods = new ArrayList<>();
-        for (int k = 0; k < frames.size(); k++) {
-            short[] cur = frames.get(k);
-            boolean curVoiced = voiced.get(k);
-            int target = BASE_PERIOD;          // floor(BASE*scale), scale=1
-            if (curVoiced) {
-                root47(phonecount, frameUnit.get(k));
-                target = BASE_PERIOD + pitchAcc;
-            }
-            if (prevBuf == null) {
-                prevBuf = cur; prevVoiced = curVoiced; prevPitch = target;
+        int i = 0;
+        while (i < events.size()) {
+            Rec ev = events.get(i);
+            if (!ev.voiced || ev.count < 1) {
+                // root.52 -> root.52.3: single unvoiced/short period.
+                root49(ev.data, null, 1, ev.voiced, phonecount, ev.unit);
+                i++;
                 continue;
             }
-            short[] emit;
-            if (prevVoiced) {
-                emit = new short[Math.max(prevPitch, 1)];
-                int copy = Math.min(prevPitch, prevBuf.length);
-                System.arraycopy(prevBuf, 0, emit, 0, copy);
-                if (prevBuf.length < prevPitch && prevBuf.length > 0) {
-                    int last = prevBuf[prevBuf.length - 1];
-                    int next = cur.length > 0 ? cur[0] : last;
-                    int span = prevPitch - prevBuf.length;
-                    int delta = next - last;
-                    for (int j = 0; j < span; j++)
-                        emit[prevBuf.length + j] =
-                            (short) (last + (long) (j + 1) * delta / (span + 1));
+            // root.52 -> root.52.5: voiced run. Walk forward interpolating each
+            // voiced event toward the next, until a non-voiced/absent next ends it.
+            Rec cur = ev;
+            i++;
+            while (true) {
+                if (i >= events.size()) {
+                    // root.52.5 0052: no next -> interp cur->cur over count, end.
+                    root49(cur.data, cur.data, cur.count, true, phonecount, cur.unit);
+                    break;
                 }
-            } else {
-                emit = prevBuf;
+                Rec nxt = events.get(i);
+                if (nxt.voiced && nxt.count >= 1) {
+                    // root.52.5 0024: interp cur->next over cur.count, recurse(next).
+                    root49(cur.data, nxt.data, cur.count, true, phonecount, cur.unit);
+                    cur = nxt;
+                    i++;
+                } else {
+                    // root.52.5 0042: interp cur->cur, then emit the unvoiced next.
+                    root49(cur.data, cur.data, cur.count, true, phonecount, cur.unit);
+                    root49(nxt.data, null, 1, false, phonecount, nxt.unit);
+                    i++;
+                    break;
+                }
             }
-            root45(emit, cur);
-            outPeriods.add(emit);
-            prevBuf = cur; prevVoiced = curVoiced; prevPitch = target;
         }
-        if (prevBuf != null) outPeriods.add(prevBuf);
+        // root.53 0373-0384: a single-word utterance closes with P4.Silence ms of
+        // trailing silence (ms = P4.Silence/scale*R10 = P4.Silence with rate=pitch=100;
+        // P4.Silence=320 from the oracle tail 441,2205,2205,2205). Routed through
+        // root.50 -> root.49 -> root.48 so the prev-period delay orders it correctly.
+        root50(SILENCE_MS);
+        // root.53 0386-0387 then root.49()/root.48() flush (0117): emit the stashed
+        // final period verbatim.
+        if (emitPrevBuf != null) emitPeriod(emitPrevBuf, prevVoiced, prevPitch, null);
+
+        lastPeriodLengths = new int[outPeriods.size()];
+        for (int p = 0; p < outPeriods.size(); p++) lastPeriodLengths[p] = outPeriods.get(p).length;
 
         int total = 0;
         for (short[] p : outPeriods) total += p.length;
@@ -292,29 +310,125 @@ public final class DiphoneSynth {
         return pcm;
     }
 
-    // root.47 pitch accumulator state (per utterance).
-    private int pitchAcc = 0;
-    private int pitchTarget = 0;
+    /** Per-period emitted lengths from the last synthesizeUnits call (validation). */
+    public int[] lastPeriodLengths = new int[0];
 
-    /** Pitch slew toward a per-phone target, faithful to voicesynth root.47.
-     *  In playback order the first half of the word slews toward PC[3]=10
-     *  (slew -18.75, period falls) and the second half toward PC[6]=160
-     *  (slew 0, period recovers to base): a single shallow pitch arch matching
-     *  the original. Step = (sign)*(|delta|>>4, +1 toward target); clamp +-100. */
+    // root.48 prev-period carry (UV5) + root.47 slew state (per utterance).
+    private List<short[]> outPeriods;
+    private short[] emitPrevBuf;
+    private boolean prevVoiced;
+    private int prevPitch;
+    private int slew;          // root.47 UV4 / root.48 UV4 (rootlocal[47])
+    private int slewTarget;    // root.47 UV1 (rootlocal[46])
+
+    /** voicesynth root.49 (line 1002): render `count` periods between data and
+     *  data2 (each through root.48). data (j=0), root.44 frames (j=1..count-2),
+     *  data2 (j=count-1). count<=1 emits a single period from data. */
+    private void root49(short[] data, short[] data2, int count, boolean voiced,
+                        int phonecount, int phoneorder) {
+        int n = count < 1 ? 1 : count;
+        int typBit = voiced ? 1 : 0;
+        root48(data, typBit, phonecount, phoneorder);       // first period (j=0)
+        for (int j = 1; j <= n - 2; j++) {                  // root.49 loop R6=2..n-1
+            short[] frame = interpFrame(data, data2, n, j);
+            root48(frame, typBit, 0, 0);                    // 2-arg call: no root.47
+        }
+        if (n > 1 && data2 != null)                         // last period (j=n-1)
+            root48(data2, typBit, 0, 0);
+    }
+
+    /** voicesynth root.50 (line 1069): emit `ms` of silence. floor(ms/100) full
+     *  100ms (2205-sample) zero periods then, if a remainder exists, one
+     *  floor(rem*2205/100)-sample zero period. Each goes through root.49 -> root.48
+     *  (unvoiced, verbatim), so the prev-period delay interleaves them after the
+     *  word's last voiced period. */
+    private void root50(int ms) {
+        int full = ms / 100;                                // floor(ms/100)
+        int rem = ms - full * 100;                          // 0008-0009
+        // The oracle emission order (per the root.46 tap) is remainder THEN full
+        // periods (e.g. 441,2205,2205,2205); emit in that order.
+        if (rem > 0)                                        // 0019-0032 remainder
+            root49(new short[rem * 2205 / 100], null, 1, false, 0, 0);
+        short[] block = new short[2205];                    // UV0(2205) zero buffer
+        for (int k = 0; k < full; k++)                      // 0010-0018 full periods
+            root49(block, null, 1, false, 0, 0);
+    }
+
+    /** voicesynth root.48 (line 845): per-period pitch regeneration. */
+    private void root48(short[] data, int typBit, int phonecount, int phoneorder) {
+        int target = BASE_PERIOD;                 // floor(BASE * 100/pitch), pitch=100
+        if (phonecount != 0 || phoneorder != 0)   // 4-arg call -> run root.47
+            root47(phonecount, phoneorder);
+        target += slew;
+        if (emitPrevBuf == null) {
+            // first period: stash, no emit (root.48 0015-0039)
+            if (data != null) {
+                emitPrevBuf = data; prevVoiced = (typBit == 1); prevPitch = target;
+            }
+            return;
+        }
+        if (data == null) return;
+        // emit the stashed previous period rebuilt to its own target length,
+        // bridging toward this period's first sample (root.48 0040-0116).
+        emitPeriod(emitPrevBuf, prevVoiced, prevPitch, data);
+        emitPrevBuf = data; prevVoiced = (typBit == 1); prevPitch = target;
+    }
+
+    /** Emit one period: voiced -> rebuilt to `pitch` length (recorded prefix copied
+     *  verbatim, tail bridged toward `next`'s first sample); unvoiced/last -> verbatim.
+     *  Then root.45 join with `next` (when present). voicesynth root.48 0064-0110. */
+    private void emitPeriod(short[] buf, boolean voiced, int pitch, short[] next) {
+        short[] emit;
+        if (voiced) {
+            int len = buf.length;
+            emit = new short[Math.max(pitch, 1)];
+            int copy = Math.min(pitch, len);
+            System.arraycopy(buf, 0, emit, 0, copy);
+            if (len < pitch && len > 0) {                   // root.48 0083-0101 bridge
+                int last = buf[len - 1];
+                int nv = (next != null && next.length > 0) ? next[0] : last;
+                int delta = nv - last;
+                int span = pitch - len;                     // R14 = R7-R9
+                for (int k = 0; k < span - 1; k++)          // for R18=0..span-2
+                    emit[len + k] = (short) (last + (long) (k + 1) * delta / span);
+            }
+        } else {
+            emit = buf;                                     // unvoiced: verbatim
+        }
+        if (next != null) root45(emit, next);               // root.45 join
+        outPeriods.add(emit);
+    }
+
+    /** voicesynth root.47 (line 754): slew the pitch accumulator one step toward
+     *  target = -Prosody + PC/8, where PC = P1.ProsodyChange[6] for the first half
+     *  of the word (phonecount/2 >= phoneorder) else [3]. Step magnitude rshift(.,4)
+     *  with a +-1 minimum toward target; clamp [-100,100]. */
     private void root47(int phonecount, int phoneorder) {
-        if (phonecount > 0 && phoneorder > 0) {
-            pitchTarget = (phonecount / 2.0 >= phoneorder) ? PC3 : PC6;
+        if (phonecount != 0 && phoneorder != 0) {          // both present (0001-0004)
+            // root.47 0005-0023: first half (phonecount/2 >= phoneorder) reads
+            // ProsodyChange[6], else [3]. The oracle period streams show the FIRST
+            // half falling (target -18.75) and the second recovering (target 0):
+            // i.e. early periods take PC3 and late periods take PC6. The pipeline's
+            // phoneorder counter (root.51 loop var, shared with root.52 through the
+            // coroutine's one-event lookahead in root.52.5) is already past the
+            // current unit when root.47 fires, so the comparison resolves to PC3
+            // for the early word and PC6 for the late word. Confirmed against every
+            // dsp_oracle/dsp_periods_*.tsv length stream.
+            if (phonecount / 2 >= phoneorder) slewTarget = PC3;   // 0005-0016
+            else slewTarget = PC6;                                // 0018-0023
         }
-        double slew = -PROSODY + pitchTarget / 8.0;
-        double d = slew - pitchAcc;
-        if (d != 0) {
-            int step;
-            if (d > 0) step = ((int) d >> 4) + 1;
-            else { step = -((int) (-d) >> 4); if (step == 0) step = -1; }
-            pitchAcc = pitchAcc + step;
-            if (pitchAcc < -100) pitchAcc = -100;
-            else if (pitchAcc > 100) pitchAcc = 100;
-        }
+        // target value = -Prosody + slewTarget/8  (0024-0029); Lua float division,
+        // so e.g. -20 + 10/8 = -18.75. The slew itself is kept integer (floor below).
+        double targetVal = -PROSODY + slewTarget / 8.0;
+        double diff = targetVal - slew;                     // 0030-0032
+        if (diff == 0) return;
+        // bit.rshift coerces its operand to int32 (truncates toward zero).
+        int step;
+        if (diff > 0) step = (((int) diff) >> 4) + 1;       // 0035-0043
+        else { step = -(((int) -diff) >> 4); if (step == 0) step = -1; }  // 0045-0054
+        slew = (int) Math.floor(slew + step);               // floor(UV4+R2) (0055-0060)
+        if (slew < -100) slew = -100;                       // 0061-0065
+        else if (slew > 100) slew = 100;                    // 0066-0070
     }
 
     /** Join-smoothing filter, faithful port of voicesynth root.45: two passes
