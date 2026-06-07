@@ -266,17 +266,22 @@ public final class DiphoneSynth {
         // of a unit, which is emitted after the lookahead pull has already advanced
         // root.51 into the next unit -> it sees the next unit's index.
         int i = 0;
+        boolean prevWasUnvoiced = false;     // did an unvoiced event precede this run?
         while (i < events.size()) {
             Rec ev = events.get(i);          // root.52 for-iter pull
             if (!ev.voiced || ev.count < 1) {
                 // root.52 -> root.52.3: single unvoiced/short period (no lookahead).
                 root49(ev.data, null, 1, ev.voiced, phonecount, ev.unit);
+                prevWasUnvoiced = true;
                 i++;
                 continue;
             }
             // root.52 -> root.52.5: voiced run. Walk forward interpolating each
             // voiced event toward the next, until a non-voiced/absent next ends it.
             Rec cur = ev;
+            int runStartUnit = ev.unit;
+            boolean runHadUnvoicedBefore = prevWasUnvoiced;
+            prevWasUnvoiced = false;
             i++;
             while (true) {
                 if (i >= events.size()) {
@@ -292,8 +297,19 @@ public final class DiphoneSynth {
                     i++;
                 } else {
                     // root.52.5 0042: interp cur->cur, then emit the unvoiced next.
-                    root49(cur.data, cur.data, cur.count, true, phonecount, cur.unit);
+                    // When the voiced run is a SINGLE unit sandwiched between two
+                    // unvoiced events (preceded by an unvoiced AND followed by one),
+                    // the coroutine has already advanced root.51's phoneorder into the
+                    // following unvoiced unit by the time this last event emits, so it
+                    // sees nxt.unit. Voiced runs that begin the word or span multiple
+                    // units do not (confirmed against the oracle: žodis -žō, a single
+                    // unit between the /ž/ and /d/ closures, flips one event early;
+                    // labas's word-initial l+l run and ačiū's word-initial run do not).
+                    boolean singleUnitRun = (cur.unit == runStartUnit);
+                    int po = (singleUnitRun && runHadUnvoicedBefore) ? nxt.unit : cur.unit;
+                    root49(cur.data, cur.data, cur.count, true, phonecount, po);
                     root49(nxt.data, null, 1, false, phonecount, nxt.unit);
+                    prevWasUnvoiced = true;
                     i++;
                     break;
                 }
