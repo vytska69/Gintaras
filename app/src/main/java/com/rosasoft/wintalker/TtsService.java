@@ -158,6 +158,13 @@ public class TtsService extends TextToSpeechService {
         short[] sentPause = new short[(int) (0.30 * SAMPLE_RATE * (pauseSent / 100.0) * rScale)];
         // Spell tokens (letters) get a small extra gap between them, scaled likewise.
         short[] spellPause = new short[(int) (0.10 * SAMPLE_RATE * (pauseWord / 100.0) * rScale)];
+        // Sentence-level intonation (voicesynth root.53): one prosody state per
+        // utterance, carrying the accumulator + pitch slew across words. Each word is
+        // rendered with its trailing punctuation (so '?' rises, '.' falls) and a
+        // last-word flag; the state resets itself at sentence-final marks.
+        DiphoneSynth.ProsodyState prosody = new DiphoneSynth.ProsodyState();
+        // Index of the last spoken (non-empty) word token, for the last-word ramp (P5).
+        int lastSpokenIdx = lastSpokenIndex(tokens);
         for (int wi = 0; wi < tokens.size(); wi++) {
             if (stop) break;
             TextNormalizer.Token tk = tokens.get(wi);
@@ -166,10 +173,18 @@ public class TtsService extends TextToSpeechService {
             // pause: sentence-final marks (. ! ? ; :) → long pause, else tiny gap.
             char pc = tk.punctuation;
             boolean sentenceEnd = pc != 0 && ".!?;:".indexOf(pc) >= 0;
+            // The punctuation that drives THIS spoken word's intonation contour is the
+            // mark of the punctuation token that immediately follows it (root.53 reads
+            // the word's own trailing punct; our tokenizer emits punct as its own
+            // token, so we look ahead). The last spoken word with no trailing mark
+            // still gets the falling last-word ramp (P5).
+            char wordPunc = trailingPunc(tokens, wi);
+            boolean lastWord = wi == lastSpokenIdx;
             // Spelled letter: use the original engine's own phonemes directly
             // (SpellZod->KircTranskr, baked in TextNormalizer) — no re-transcription.
             if (tk.phonemes != null) {
-                short[] pcm = synth.synthesize(tk.phonemes, rate, pitch);
+                short[] pcm = synth.synthesize(tk.phonemes, rate, pitch,
+                        wordPunc, lastWord, prosody);
                 if (!writePcm(callback, pcm)) break;
                 if (!writePcm(callback, isLast ? sentPause : spellPause)) break;
                 continue;
@@ -184,12 +199,42 @@ public class TtsService extends TextToSpeechService {
                 continue;
             }
             List<String> phonemes = Transcriber.transcribe(w, w.length);
-            short[] pcm = synth.synthesize(phonemes.toArray(new String[0]), rate, pitch);
+            short[] pcm = synth.synthesize(phonemes.toArray(new String[0]), rate, pitch,
+                    wordPunc, lastWord, prosody);
             if (!writePcm(callback, pcm)) break;
             short[] gap = sentenceEnd || isLast ? sentPause : (tk.spell ? spellPause : wordPause);
             if (!writePcm(callback, gap)) break;
         }
         callback.done();
+    }
+
+    /** The trailing punctuation that drives token {@code wi}'s intonation contour:
+     *  if {@code wi} is itself a word, it is the mark of the next pure-punctuation
+     *  token (looking past empty tokens), else '\0'. A pure-punct token returns its
+     *  own mark so its (spoken) word, if any, carries that contour too. */
+    private static char trailingPunc(List<TextNormalizer.Token> tokens, int wi) {
+        TextNormalizer.Token tk = tokens.get(wi);
+        if (tk.punctuation != 0) return tk.punctuation;
+        for (int j = wi + 1; j < tokens.size(); j++) {
+            TextNormalizer.Token n = tokens.get(j);
+            if (n.punctuation != 0) return n.punctuation;
+            // A real spoken word before any punctuation -> this word has no trailing mark.
+            if (isSpoken(n)) return (char) 0;
+        }
+        return (char) 0;
+    }
+
+    /** Index of the last spoken (word or letter) token, or -1 if none. */
+    private static int lastSpokenIndex(List<TextNormalizer.Token> tokens) {
+        for (int i = tokens.size() - 1; i >= 0; i--) {
+            if (isSpoken(tokens.get(i))) return i;
+        }
+        return -1;
+    }
+
+    /** Whether a token produces audible speech (a letter's phonemes or a word). */
+    private static boolean isSpoken(TextNormalizer.Token t) {
+        return t.phonemes != null || (t.text != null && !t.text.isEmpty());
     }
 
     /** Read the SharedPreferences that affect reading. Keys match root_preferences
