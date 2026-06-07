@@ -87,18 +87,65 @@ public final class DiphoneSynth {
      * periods (faster) keeping pitch.
      */
     public short[] synthesize(String[] phonemes, int rate, int pitch) {
-        // Build the conversion code-unit string with the literal trans-conversion
-        // port ({@link Conversion}, == the original trans root.8 + root.37.11).
-        // This carries the special-letter code units, the diphthong short-vowel
-        // handling and the '|' palatal marker exactly as the original engine does
-        // (validated 100% byte-for-byte over the corpus). Then select the demi-
-        // syllable unit sequence with the literal translate port.
+        // No sentence context: a fresh prosody state, default ('\0') punctuation, not
+        // flagged as the last word -> the default P1 ramp, byte-identical to before.
+        return synthesize(phonemes, rate, pitch, '\0', false, new ProsodyState());
+    }
+
+    /**
+     * Synthesize one word of an utterance carrying the sentence-level intonation
+     * (voicesynth root.53). {@code punctuation} is the word's trailing mark (one of
+     * {@code . ! ? , ; :} or {@code '\0'} for none); {@code lastWord} is true for the
+     * final word of the utterance; {@code state} is the persistent accumulator/slew
+     * carried across the whole utterance (create one per utterance and reuse it).
+     *
+     * This is the per-word body of root.53's sentence loop: select the ProsodyChange
+     * ramp by punctuation (0240-0290), apply the '?' accumulator bump (0257-0263),
+     * render the word with that ramp + the carried slew, then update the accumulator
+     * for the next word — reset at sentence end (0297-0320), or decline by
+     * P3.ProsodyDifference otherwise (0354-0360).
+     */
+    public short[] synthesize(String[] phonemes, int rate, int pitch,
+                              char punctuation, boolean lastWord, ProsodyState state) {
         List<String> ps = new ArrayList<>(phonemes.length);
         for (String p : phonemes) ps.add(p);
         String s = Conversion.convert(ps);
 
         if (sequencer == null) sequencer = new CandidateSequencer(db);
-        return synthesizeUnits(sequencer.sequence(s), rate, pitch);
+
+        // --- root.53 0240-0290: pick this word's ProsodyChange ramp by punctuation,
+        //     and apply the '?' pre-word accumulator bump (UV0 -= P8.ProsodyDifference).
+        int[] ramp;
+        if (isIn(".!;:", punctuation)) {
+            ramp = PC_P7;                               // 0240-0253
+        } else if (punctuation == '?') {
+            state.accumulator -= P8_DIFF;               // 0257-0263: -(-10) = +10
+            ramp = PC_P8;                               // 0264-0268
+        } else if (punctuation == ',') {
+            ramp = PC_P6;                               // 0270-0276
+        } else if (lastWord) {
+            ramp = PC_P5;                               // 0278-0284
+        } else {
+            ramp = PC_P1;                               // 0286-0290
+        }
+
+        short[] pcm = synthesizeUnits(sequencer.sequence(s), rate, pitch, ramp, state);
+
+        // --- root.53 0297-0372: post-word accumulator update for the next word.
+        if (isIn(".!?;:)]}", punctuation)) {
+            state.accumulator = PROSODY;                // 0306-0310: reset to P0.Prosody
+            // P0.Reset == true -> declination would reset too (we keep no separate
+            // declination term; the accumulator IS the carried offset).
+        } else if (punctuation == ',') {
+            state.accumulator = P2_PROSODY;             // 0336-0340: reset to P2.Prosody
+        } else {
+            state.accumulator -= P3_DIFF;               // 0354-0360: decline by 4
+        }
+        return pcm;
+    }
+
+    private static boolean isIn(String set, char c) {
+        return c != '\0' && set.indexOf(c) >= 0;
     }
 
     // ===================== Literal voicesynth DSP port =====================
@@ -133,12 +180,63 @@ public final class DiphoneSynth {
     //             seam between the rebuilt period and the next raw period.
     //   tempo = P0[6]/100 = 0.62 (record.tempo in root.53 line 0208; pitch=rate=100).
     private static final double TEMPO_FACTOR = 0.62;
-    private static final int PC3 = 10;     // P1.ProsodyChange[3]
-    private static final int PC6 = 160;    // P1.ProsodyChange[6]
     /** P4.Silence (ms) — trailing silence after a single-word utterance (root.53
      *  0373-0384). The oracle tail (441,2205,2205,2205 = 1 remainder + 3 full
      *  22050Hz/100ms periods) fixes this at 320. */
     private static final int SILENCE_MS = 320;
+
+    // ---- Sentence-level prosody (intonation) tables ----------------------------
+    // The per-word ProsodyChange ramp and the accumulator increments come from the
+    // P-tables P0..P8 parsed by loadvoice (root.43) from Gintaras.dta. These are
+    // fixed voice DATA; the values below were read straight out of the real .dta via
+    // the running original engine (each is a 1-based slice of the raw P array — see
+    // the loadvoice mapping cited per field). root.47 reads ProsodyChange[6] for the
+    // first half of a word and ProsodyChange[3] for the second; root.53 selects which
+    // table by the word's trailing punctuation.
+    //
+    //   raw .dta P arrays (1-indexed):
+    //     P0={10,10,0,1,220,62}  P1={0,0,0,0,0,50,10,20,50,160}
+    //     P2={10,10,20,1}        P3={0,4,20,1}   P4={0,0,300}
+    //     P5={0,0,0,0,0,50,10,20,50,160}  P6={0,0,0,0,0,50,10,50,100,400}
+    //     P7={0,0,0,0,0,50,10,50,100,400} P8={0,-10,0,0,10,100,200,-100,100,-600}
+    //
+    // ProsodyChange[1..6] = raw P[5..10]; we only ever read [3] and [6] (root.47).
+    /** P1.ProsodyChange[3],[6] — default word (loadvoice 0052-0064). */
+    private static final int[] PC_P1 = {10, 160};
+    /** P5.ProsodyChange[3],[6] — last word of an utterance (loadvoice 0110-0124). */
+    private static final int[] PC_P5 = {10, 160};
+    /** P6.ProsodyChange[3],[6] — word ending in ',' (loadvoice 0129-0143). */
+    private static final int[] PC_P6 = {50, 400};
+    /** P7.ProsodyChange[3],[6] — word ending in '.' '!' ';' ':' (loadvoice 0147-0162). */
+    private static final int[] PC_P7 = {50, 400};
+    /** P8.ProsodyChange[3],[6] — word ending in '?' (loadvoice 0167-0183). */
+    private static final int[] PC_P8 = {200, -600};
+    /** P8.ProsodyDifference = raw P8[2] = -10 (loadvoice 0168). A '?' bumps the
+     *  accumulator by -(-10)=+10 before the word is rendered (root.53 0257-0263). */
+    private static final int P8_DIFF = -10;
+    /** P3.ProsodyDifference = raw P3[2] = 4 (loadvoice 0088). Per-word declination:
+     *  a normal word drops the accumulator by 4 afterwards (root.53 0354-0360). */
+    private static final int P3_DIFF = 4;
+    /** P2.Prosody = P2[1]+P2[2] = 20 (loadvoice 0070-0073). Reset value after ','. */
+    private static final int P2_PROSODY = 20;
+
+    /**
+     * Persistent sentence-level prosody state, threaded across the words of ONE
+     * utterance (the original keeps these as voicesynth root-locals that live for the
+     * whole {@code speak()} call — rootlocal[44]=accumulator, rootlocal[47]=slew,
+     * rootlocal[46]=slewTarget). A fresh state reproduces the original's start of a
+     * sentence: accumulator = P0.Prosody = 20, slew = 0.
+     *
+     * Higher accumulator / higher slew => longer pitch period => LOWER pitch. So the
+     * per-word declination (accumulator -4) gradually lowers the voice, sentence-final
+     * '.' raises the accumulator's effect (fall), and '?' (P8, big negative
+     * ProsodyChange) shortens the periods at the end => the voice RISES.
+     */
+    public static final class ProsodyState {
+        int accumulator = PROSODY;   // root.53 0001-0005: UV0 = P0.Prosody = 20
+        int slew = 0;                // root.47 UV4 (rootlocal[47]) — persists per utterance
+        int slewTarget = 0;          // root.47 UV1 (rootlocal[46])
+    }
 
     /** A flattened leaf record from root.51.1: one recorded sample block with its
      *  voiced bit (typ&1), its record count and its source unit index (1-based,
@@ -155,15 +253,31 @@ public final class DiphoneSynth {
         return synthesizeUnits(unitNames, 100, 100);
     }
 
+    /** Build PCM from an explicit unit sequence at the given rate/pitch (%, 100=normal),
+     *  with no sentence context (default P1 ramp, fresh prosody state). */
+    public short[] synthesizeUnits(List<String> unitNames, int rate, int pitch) {
+        return synthesizeUnits(unitNames, rate, pitch, PC_P1, new ProsodyState());
+    }
+
     /** Effective per-utterance pitch period and tempo, derived from rate/pitch. */
     private int curBasePeriod = BASE_PERIOD;
     private double curTempo = TEMPO_FACTOR;
 
+    /** The ProsodyChange ramp ([3],[6]) in force for the word being rendered (root.47). */
+    private int[] curRamp = PC_P1;
+
     /** Clamp a rate/pitch percentage to a sane range (avoids div-by-zero / extremes). */
     private static int clampPct(int v) { return v < 25 ? 25 : (v > 400 ? 400 : v); }
 
-    /** Build PCM from an explicit unit sequence at the given rate/pitch (%, 100=normal). */
-    public short[] synthesizeUnits(List<String> unitNames, int rate, int pitch) {
+    /** Build PCM with the selected ProsodyChange ramp and the carried prosody state. */
+    public short[] synthesizeUnits(List<String> unitNames, int rate, int pitch,
+                                   int[] ramp, ProsodyState state) {
+        curRamp = ramp;
+        return synthesizeUnits(unitNames, rate, pitch, state);
+    }
+
+    private short[] synthesizeUnits(List<String> unitNames, int rate, int pitch,
+                                    ProsodyState state) {
         int pPct = clampPct(pitch), rPct = clampPct(rate);
         curBasePeriod = (int) Math.round(BASE_PERIOD * 100.0 / pPct); // root.48: floor(BASE*100/pitch)
         curTempo = TEMPO_FACTOR * pPct / (double) rPct;              // root.53/51: 0.62*pitch/rate
@@ -207,9 +321,12 @@ public final class DiphoneSynth {
         if (events.isEmpty()) return new short[0];
 
         // ---- root.52 + 52.5 + 49 + 48 + 47 + 45 + 46: emit periods ----
-        slew = 0;
-        slewTarget = 0;       // root.47 UV1, persists between calls
-        emitPrevBuf = null;   // root.48 UV5 (prev period state)
+        // root.47's slew (rootlocal[47]) and slewTarget (rootlocal[46]) PERSIST across
+        // the words of an utterance — they live in the prosody state, not reset here.
+        // (The accumulator, rootlocal[44], also lives in the state.) A fresh state
+        // (single-word callers) starts slew=0, accumulator=20: byte-identical to before.
+        this.state = state;
+        emitPrevBuf = null;   // root.48 UV5 (prev period state) — per-word
         outPeriods = new ArrayList<>();
 
         // phoneorder (rootlocal[66]) is root.51's loop variable, updated when it
@@ -293,13 +410,13 @@ public final class DiphoneSynth {
     /** Per-period emitted lengths from the last synthesizeUnits call (validation). */
     public int[] lastPeriodLengths = new int[0];
 
-    // root.48 prev-period carry (UV5) + root.47 slew state (per utterance).
+    // root.48 prev-period carry (UV5) — per-word DSP state.
     private List<short[]> outPeriods;
     private short[] emitPrevBuf;
     private boolean prevVoiced;
     private int prevPitch;
-    private int slew;          // root.47 UV4 / root.48 UV4 (rootlocal[47])
-    private int slewTarget;    // root.47 UV1 (rootlocal[46])
+    /** Carried sentence-level prosody (accumulator + slew); set per synthesizeUnits call. */
+    private ProsodyState state = new ProsodyState();
 
     /** voicesynth root.49 (line 1002): render `count` periods between data and
      *  data2 (each through root.48). data (j=0), root.44 frames (j=1..count-2),
@@ -342,7 +459,7 @@ public final class DiphoneSynth {
         // present, but it always advances the slew one step -> the pitch contour
         // changes on every emitted period, including count>1 interpolation frames.
         root47(phonecount, phoneorder);
-        target += slew;
+        target += state.slew;
         if (emitPrevBuf == null) {
             // first period (root.48 0015-0039): R8 = fresh copy of data; stash it.
             // No emit and no join yet (there is no previous period).
@@ -395,35 +512,37 @@ public final class DiphoneSynth {
     }
 
     /** voicesynth root.47 (line 754): slew the pitch accumulator one step toward
-     *  target = -Prosody + PC/8, where PC = P1.ProsodyChange[6] for the first half
-     *  of the word (phonecount/2 >= phoneorder) else [3]. Step magnitude rshift(.,4)
-     *  with a +-1 minimum toward target; clamp [-100,100]. */
+     *  target = -accumulator + PC/8, where PC = ProsodyChange[6] for the first half
+     *  of the word (phonecount/2 >= phoneorder) else [3]. The accumulator (root.47
+     *  UV3 = root.53 UV0) carries the sentence-level offset; ProsodyChange is the
+     *  per-word ramp selected by punctuation. Step magnitude rshift(.,4) with a +-1
+     *  minimum toward target; clamp [-100,100]. */
     private void root47(int phonecount, int phoneorder) {
         if (phonecount != 0 && phoneorder != 0) {          // both present (0001-0004)
             // root.47 0005-0023: first half (phonecount/2 >= phoneorder) reads
             // ProsodyChange[6], else [3]. The oracle period streams show the FIRST
             // half falling (target -18.75) and the second recovering (target 0):
-            // i.e. early periods take PC3 and late periods take PC6. The pipeline's
-            // phoneorder counter (root.51 loop var, shared with root.52 through the
-            // coroutine's one-event lookahead in root.52.5) is already past the
-            // current unit when root.47 fires, so the comparison resolves to PC3
-            // for the early word and PC6 for the late word. Confirmed against every
-            // dsp_oracle/dsp_periods_*.tsv length stream.
-            if (phonecount / 2 >= phoneorder) slewTarget = PC3;   // 0005-0016
-            else slewTarget = PC6;                                // 0018-0023
+            // i.e. early periods take ramp[index3] and late periods ramp[index6]. The
+            // pipeline's phoneorder counter (root.51 loop var, shared with root.52 via
+            // the coroutine's one-event lookahead in root.52.5) is already past the
+            // current unit when root.47 fires, so the comparison resolves to [3] for
+            // the early word and [6] for the late word. Confirmed against every
+            // dsp_oracle/dsp_periods_*.tsv length stream. curRamp = {[3], [6]}.
+            if (phonecount / 2 >= phoneorder) state.slewTarget = curRamp[0];  // 0005-0016
+            else state.slewTarget = curRamp[1];                               // 0018-0023
         }
-        // target value = -Prosody + slewTarget/8  (0024-0029); Lua float division,
+        // target value = -accumulator + slewTarget/8  (0024-0029); Lua float division,
         // so e.g. -20 + 10/8 = -18.75. The slew itself is kept integer (floor below).
-        double targetVal = -PROSODY + slewTarget / 8.0;
-        double diff = targetVal - slew;                     // 0030-0032
+        double targetVal = -state.accumulator + state.slewTarget / 8.0;
+        double diff = targetVal - state.slew;               // 0030-0032
         if (diff == 0) return;
         // bit.rshift coerces its operand to int32 (truncates toward zero).
         int step;
         if (diff > 0) step = (((int) diff) >> 4) + 1;       // 0035-0043
         else { step = -(((int) -diff) >> 4); if (step == 0) step = -1; }  // 0045-0054
-        slew = (int) Math.floor(slew + step);               // floor(UV4+R2) (0055-0060)
-        if (slew < -100) slew = -100;                       // 0061-0065
-        else if (slew > 100) slew = 100;                    // 0066-0070
+        state.slew = (int) Math.floor(state.slew + step);   // floor(UV4+R2) (0055-0060)
+        if (state.slew < -100) state.slew = -100;           // 0061-0065
+        else if (state.slew > 100) state.slew = 100;        // 0066-0070
     }
 
     /** Literal port of voicesynth root.45 (line 661): two passes (window +-4 then
