@@ -179,6 +179,14 @@ public final class NumberExpander {
             if (d != 0) {
                 List<String> w = lookup(d, scale);
                 if (w != null) out.addAll(w);
+                else {
+                    // No scale word for this position (tens/hundreds of billions and
+                    // beyond — the .dta tops out at scale 9). The original
+                    // (translate root.24.1 lines 0122-0145) fills any unmatched digit
+                    // with its bare single-digit name N{d}, so no digit is dropped.
+                    List<String> bare = buckets.get("N" + d);
+                    if (bare != null) out.addAll(bare);
+                }
             } else if (scale % 3 == 0 && scale > 0 && tripleNonZero(digits, len, scale)) {
                 // group scale word (N0+<3k>R = tūkstančių / milijonų / ...)
                 List<String> w = lookup(0, scale);
