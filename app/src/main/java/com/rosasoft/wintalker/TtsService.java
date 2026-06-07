@@ -166,6 +166,14 @@ public class TtsService extends TextToSpeechService {
             // pause: sentence-final marks (. ! ? ; :) → long pause, else tiny gap.
             char pc = tk.punctuation;
             boolean sentenceEnd = pc != 0 && ".!?;:".indexOf(pc) >= 0;
+            // Spelled letter: use the original engine's own phonemes directly
+            // (SpellZod->KircTranskr, baked in TextNormalizer) — no re-transcription.
+            if (tk.phonemes != null) {
+                short[] pcm = synth.synthesize(tk.phonemes, rate, pitch);
+                if (!writePcm(callback, pcm)) break;
+                if (!writePcm(callback, isLast ? sentPause : spellPause)) break;
+                continue;
+            }
             if (tk.text == null || tk.text.isEmpty()) {
                 if (pc != 0 && !writePcm(callback, sentenceEnd ? sentPause : wordPause)) break;
                 continue;

@@ -73,10 +73,15 @@ public final class TextNormalizer {
         public final String text;     // spoken text to transcribe ("" = silent)
         public final char punctuation; // the punctuation char, or 0
         public final boolean spell;    // true if this is a spell-path token
+        public final String[] phonemes; // pre-resolved phonemes (spelled letters); else null
         public Token(String text, char punctuation, boolean spell) {
+            this(text, punctuation, spell, null);
+        }
+        public Token(String text, char punctuation, boolean spell, String[] phonemes) {
             this.text = text;
             this.punctuation = punctuation;
             this.spell = spell;
+            this.phonemes = phonemes;
         }
     }
 
@@ -248,8 +253,21 @@ public final class TextNormalizer {
                     && Character.isLetter(tok.charAt(0));
             boolean acronym = tok.length() > 1 && isAllUpper(tok) && hasNoDigit(tok);
             if (loneLetter || acronym) {
-                for (String letter : spellLetters(tok))
-                    out.add(new Token(letter, (char) 0, true));
+                for (int k = 0; k < tok.length(); k++) {
+                    String key = String.valueOf(Character.toLowerCase(tok.charAt(k)));
+                    String[] ph = LETTER_PHONEMES.get(key);
+                    if (ph != null) {
+                        // Faithful spell: the original engine's own SpellZod->KircTranskr
+                        // phonemes for this letter — synthesized directly (no re-transcribe).
+                        out.add(new Token("", (char) 0, true, ph));
+                    } else {
+                        // Fallback (custom spelllit.dct entry or unknown char): read by name.
+                        String nm = spell.get(key);
+                        if (nm == null) nm = LETTER_NAMES.get(key);
+                        out.add(new Token(nm != null ? nm : String.valueOf(tok.charAt(k)),
+                                (char) 0, true));
+                    }
+                }
                 continue;
             }
             // Word path: substitute non-Lithuanian x/q/w, then numbers + dictionary.
@@ -330,21 +348,6 @@ public final class TextNormalizer {
         return true;
     }
 
-    /** Read a spell token letter by letter. Each letter becomes its spoken NAME:
-     *  the custom spelllit.dct first, else the built-in Lithuanian letter name
-     *  ({@link #LETTER_NAMES}). A lone consonant otherwise produces only a brief
-     *  unintelligible burst; the name ("bė","es","ka"…) is what is expected, e.g.
-     *  when typing on the TalkBack keyboard. */
-    List<String> spellLetters(String tok) {
-        List<String> out = new ArrayList<>();
-        for (int i = 0; i < tok.length(); i++) {
-            String key = String.valueOf(Character.toLowerCase(tok.charAt(i)));
-            String mapped = spell.get(key);
-            if (mapped == null) mapped = LETTER_NAMES.get(key);
-            out.add(mapped != null ? mapped : String.valueOf(tok.charAt(i)));
-        }
-        return out;
-    }
 
     /** Lithuanian (and foreign) letter NAMES for spelled-out letters. Recovered
      *  VERBATIM from the original engine's native speller (libtranscr {@code SpellZod})
@@ -364,6 +367,54 @@ public final class TextNormalizer {
             {"w","dablvė"},{"x","iks"},{"q","kū"},
         };
         for (String[] e : n) LETTER_NAMES.put(e[0], e[1]);
+    }
+
+    /** Per-letter PHONEMES recovered VERBATIM from the original engine: the native
+     *  speller {@code SpellZod} run over each letter, then the native transcriber
+     *  {@code KircTranskr} — captured via the libtranscr oracle. These are fed
+     *  straight to the synthesiser (no re-transcription), so spelled letters carry
+     *  the original's exact stress/length (e.g. f="E f", y="iI i L g Oo j' i",
+     *  w="d aA b' L' v' eE"). This is the faithful port of the spell path. */
+    private static final Map<String, String[]> LETTER_PHONEMES = new java.util.HashMap<>();
+    static {
+        String[][] ph = {
+            {"a","_ aA _ _"},
+            {"ą","_ aA n oO s' i n' eE _ _"},
+            {"b","_ b' eE _ _"},
+            {"c","_ ts' eE _ _"},
+            {"č","_ tS' eE _ _"},
+            {"d","_ d' eE _ _"},
+            {"e","_ eA _ _"},
+            {"ę","_ eA n oO s' i n' eE _ _"},
+            {"ė","_ eE _ _"},
+            {"f","_ E f _ _"},
+            {"g","_ g' eE _ _"},
+            {"h","_ h aA _ _"},
+            {"i","_ i _ _"},
+            {"į","_ iI n oO s' i n' eE _ _"},
+            {"y","_ iI i L g Oo j' i _ _"},
+            {"j","_ j' O t _ _"},
+            {"k","_ k aA _ _"},
+            {"l","_ E L _ _"},
+            {"m","_ E M _ _"},
+            {"n","_ E N _ _"},
+            {"o","_ oO _ _"},
+            {"p","_ p' eE _ _"},
+            {"q","_ k uU _ _"},
+            {"r","_ E R _ _"},
+            {"s","_ E s _ _"},
+            {"š","_ E S _ _"},
+            {"t","_ t' eE _ _"},
+            {"u","_ U _ _"},
+            {"ų","_ uU n oO s' i n' eE _ _"},
+            {"ū","_ uU i L g Oo j' i _ _"},
+            {"v","_ v' eE _ _"},
+            {"w","_ d aA b' L' v' eE _ _"},
+            {"x","_ i k s _ _"},
+            {"z","_ z' eE _ _"},
+            {"ž","_ Z' eE _ _"},
+        };
+        for (String[] e : ph) LETTER_PHONEMES.put(e[0], e[1].split(" "));
     }
 
     /** Substitute the non-Lithuanian letters x/q/w with their phonetic reading when
