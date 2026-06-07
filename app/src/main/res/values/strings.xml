@@ -39,7 +39,6 @@
     <string name="stop">Stop</string>
     <string name="speech_rate">Kalbėjimo greitis</string>
     <string name="open_settings">Atidaryti nustatymus</string>
-    <string name="export_log">Eksportuoti logą į Atsisiuntimus</string>
     <string name="tts_loading">Kraunamas sintezatorius…</string>
     <string name="tts_ready">Sintezatorius paruoštas.</string>
     <string name="tts_no_lang">Lietuvių balsas neprieinamas.</string>
