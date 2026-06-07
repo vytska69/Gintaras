@@ -253,32 +253,60 @@ public final class TextNormalizer {
                     && Character.isLetter(tok.charAt(0));
             boolean acronym = tok.length() > 1 && isAllUpper(tok) && hasNoDigit(tok);
             if (loneLetter || acronym) {
-                for (int k = 0; k < tok.length(); k++) {
-                    String key = String.valueOf(Character.toLowerCase(tok.charAt(k)));
-                    String[] ph = LETTER_PHONEMES.get(key);
-                    if (ph != null) {
-                        // Faithful spell: the original engine's own SpellZod->KircTranskr
-                        // phonemes for this letter — synthesized directly (no re-transcribe).
-                        out.add(new Token("", (char) 0, true, ph));
-                    } else {
-                        // Fallback (custom spelllit.dct entry or unknown char): read by name.
-                        String nm = spell.get(key);
-                        if (nm == null) nm = LETTER_NAMES.get(key);
-                        out.add(new Token(nm != null ? nm : String.valueOf(tok.charAt(k)),
-                                (char) 0, true));
-                    }
-                }
+                emitSpelled(out, tok);
                 continue;
             }
             // Word path: substitute non-Lithuanian x/q/w, then numbers + dictionary.
             String expanded = numbers.expand(subAlien(tok), st.numgroup);
             for (String w : expanded.split("\\s+")) {
                 if (w.isEmpty()) continue;
-                String spoken = st.useDictionary ? applyStd(w) : w;
-                out.add(new Token(spoken, (char) 0, false));
+                // A vowelless alphabetic token is an abbreviation/consonant cluster
+                // (nr, km, tv, html, …): the original (PradApdZod) spells it letter by
+                // letter. A token with any vowel (incl. y) is read as a word.
+                if (isAlphaWord(w) && !hasVowel(w)) {
+                    emitSpelled(out, w);
+                } else {
+                    String spoken = st.useDictionary ? applyStd(w) : w;
+                    out.add(new Token(spoken, (char) 0, false));
+                }
             }
         }
         return out;
+    }
+
+    /** Emit one spell Token per character: the original engine's own phonemes for
+     *  that letter (baked SpellZod→KircTranskr), else a name fallback. */
+    private void emitSpelled(List<Token> out, String tok) {
+        for (int k = 0; k < tok.length(); k++) {
+            String key = String.valueOf(Character.toLowerCase(tok.charAt(k)));
+            String[] ph = LETTER_PHONEMES.get(key);
+            if (ph != null) {
+                out.add(new Token("", (char) 0, true, ph));
+            } else {
+                String nm = spell.get(key);
+                if (nm == null) nm = LETTER_NAMES.get(key);
+                out.add(new Token(nm != null ? nm : String.valueOf(tok.charAt(k)), (char) 0, true));
+            }
+        }
+    }
+
+    /** Whether a token is alphabetic (has letters, no digits). */
+    private static boolean isAlphaWord(String w) {
+        boolean any = false;
+        for (int i = 0; i < w.length(); i++) {
+            char c = w.charAt(i);
+            if (Character.isDigit(c)) return false;
+            if (Character.isLetter(c)) any = true;
+        }
+        return any;
+    }
+
+    /** Whether a token contains any Lithuanian vowel (y counts). */
+    private static boolean hasVowel(String w) {
+        String s = w.toLowerCase();
+        for (int i = 0; i < s.length(); i++)
+            if ("aeiouyąęėįųū".indexOf(s.charAt(i)) >= 0) return true;
+        return false;
     }
 
     private static boolean hasNoDigit(String s) {
