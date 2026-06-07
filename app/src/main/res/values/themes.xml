@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <!--
         Base theme. Static amber fallback palette used on Android < 12 and when
         dynamic color is unavailable. On Android 12+ GintarasApp applies Material
@@ -14,6 +14,11 @@
         <item name="colorSecondaryContainer">@color/amber_100</item>
         <item name="colorOnSecondaryContainer">@color/amber_900</item>
         <item name="android:statusBarColor">?attr/colorSurface</item>
+        <!-- Android 15 (API 35) forces edge-to-edge, which drew the top of the
+             settings list (the voice item) under the status bar. Opt out so the
+             system bars reserve their space and content is not clipped. Ignored on
+             older versions. -->
+        <item name="android:windowOptOutEdgeToEdgeEnforcement" tools:targetApi="35">true</item>
     </style>
 
     <style name="Theme.Gintaras.Settings" parent="Theme.Gintaras" />

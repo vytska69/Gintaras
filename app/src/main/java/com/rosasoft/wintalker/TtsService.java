@@ -145,15 +145,19 @@ public class TtsService extends TextToSpeechService {
                 ? normalizer.normalize(text, st)
                 : fallbackTokens(text);
 
-        // Pause model ported from the original (voicesynth root.53 + root.50):
-        // between words/clauses a tiny P3/P2.Silence=20 ≈ 0.02 s; at sentence end
-        // (. ! ? ; :) and at the very end of the utterance the P4.Silence=300 ≈
-        // 0.30 s. The original does NOT insert a big gap after every word.
-        short[] wordPause = new short[(int) (0.02 * SAMPLE_RATE)];   // P3/P2 = 20
-        short[] sentPause = new short[(int) (0.30 * SAMPLE_RATE)];   // P4 = 300
-        // Spell tokens are read slowed (root.53 scales the tempo by 1.6 for the
-        // spell path); we add a small extra gap between spelled letters instead.
-        short[] spellPause = new short[(int) (0.10 * SAMPLE_RATE)];
+        // Pause model (voicesynth root.53 + root.50): a small inter-word/clause gap
+        // and a longer one at sentence end (. ! ? ; :). Both scale with the user's
+        // "Pauzė tarp žodžių" / "Pauzė tarp sakinių" settings (percent, 100=normal:
+        // Trumpa/Įprasta/Ilga) and with the speech rate (faster speech = shorter
+        // pauses). The per-word trailing pad is NOT added by the synth anymore.
+        SharedPreferences pp = PreferenceManager.getDefaultSharedPreferences(this);
+        int pauseWord = parseIntPref(pp, "pause_word", 100);
+        int pauseSent = parseIntPref(pp, "pause_sentence", 100);
+        double rScale = 100.0 / rate;
+        short[] wordPause = new short[(int) (0.02 * SAMPLE_RATE * (pauseWord / 100.0) * rScale)];
+        short[] sentPause = new short[(int) (0.30 * SAMPLE_RATE * (pauseSent / 100.0) * rScale)];
+        // Spell tokens (letters) get a small extra gap between them, scaled likewise.
+        short[] spellPause = new short[(int) (0.10 * SAMPLE_RATE * (pauseWord / 100.0) * rScale)];
         for (int wi = 0; wi < tokens.size(); wi++) {
             if (stop) break;
             TextNormalizer.Token tk = tokens.get(wi);

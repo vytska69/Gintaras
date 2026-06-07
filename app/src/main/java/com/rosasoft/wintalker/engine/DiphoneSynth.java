@@ -271,13 +271,12 @@ public final class DiphoneSynth {
                 }
             }
         }
-        // root.53 0373-0384: a single-word utterance closes with P4.Silence ms of
-        // trailing silence (ms = P4.Silence/scale*R10 = P4.Silence with rate=pitch=100;
-        // P4.Silence=320 from the oracle tail 441,2205,2205,2205). Routed through
-        // root.50 -> root.49 -> root.48 so the prev-period delay orders it correctly.
-        root50(SILENCE_MS);
-        // root.53 0386-0387 then root.49()/root.48() flush (0117): emit the stashed
-        // final period verbatim.
+        // NOTE: the engine's per-word P4.Silence trailing pad (root.53 0373-0384 ->
+        // root.50) is NOT emitted here. TtsService synthesizes ONE word per call and
+        // adds the inter-word / sentence pauses itself (scaled by the user's pause
+        // settings); appending the ~320 ms pad to every word produced a long pause
+        // after each word regardless of the setting. Standalone callers that want a
+        // trailing pad can add it themselves.
         flushPeriod();
 
         lastPeriodLengths = new int[outPeriods.size()];
