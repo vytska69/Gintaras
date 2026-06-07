@@ -9,3 +9,4 @@
 //! (unit selection) -> diphone synth (PSOLA DSP + prosody) -> 16-bit PCM.
 
 pub mod voicedb;
+pub mod transcriber;
