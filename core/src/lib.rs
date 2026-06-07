@@ -15,3 +15,5 @@ pub mod sequencer;
 pub mod synth;
 pub mod numbers;
 pub mod normalizer;
+pub mod engine;
+pub mod ffi;
