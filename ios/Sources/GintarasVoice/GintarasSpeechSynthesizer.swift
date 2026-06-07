@@ -1,4 +1,6 @@
 import AVFoundation
+import AudioToolbox
+import CoreAudio
 import GintarasKit
 
 /// System-wide Lithuanian voice: an AVSpeechSynthesisProviderAudioUnit (iOS 16+)

@@ -20,8 +20,6 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
-      - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_16.app
       - name: Install XcodeGen
         run: brew install xcodegen
       - name: Build Rust core (iOS device only)
@@ -62,8 +60,6 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
-      - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_16.app
       - name: Install XcodeGen
         run: brew install xcodegen
       - name: Build Rust core (Mac Catalyst only)
