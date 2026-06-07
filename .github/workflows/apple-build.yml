@@ -5,6 +5,10 @@ name: Apple build (unsigned .ipa + .pkg)
 #   - an ad-hoc signed Mac Catalyst .pkg
 # Both are uploaded as build artifacts. Neither is App Store / notarized — see
 # the install notes in ios/README.md.
+#
+# Note: code-sign entitlements (App Group) are dropped for these CI artifacts —
+# they need a real Apple Team to take effect, and re-signing (Sideloadly/AltStore)
+# re-applies them anyway.
 
 on:
   workflow_dispatch:
@@ -28,24 +32,29 @@ jobs:
       - name: Generate Xcode project
         working-directory: ios
         run: xcodegen generate
-      - name: Archive (unsigned)
+      - name: Build (unsigned)
         working-directory: ios
+        # Use `build` (not `archive`) so the archive-time ValidateEmbeddedBinary
+        # step doesn't run against the unsigned embedded extension.
         run: |
           set -euo pipefail
-          xcodebuild archive \
+          xcodebuild build \
             -project Gintaras.xcodeproj \
             -scheme Gintaras \
+            -configuration Release \
             -destination 'generic/platform=iOS' \
-            -archivePath build/Gintaras.xcarchive \
+            -derivedDataPath build/dd \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_ENTITLEMENTS="" \
             CURRENT_PROJECT_VERSION=${{ github.run_number }}
       - name: Package .ipa
         working-directory: ios
         run: |
           set -euo pipefail
-          APP=$(ls -d build/Gintaras.xcarchive/Products/Applications/*.app | head -1)
+          APP=$(ls -d build/dd/Build/Products/Release-iphoneos/*.app | head -1)
           rm -rf build/Payload && mkdir -p build/Payload
           cp -R "$APP" build/Payload/
           ( cd build && zip -qry Gintaras-unsigned.ipa Payload )
@@ -68,8 +77,11 @@ jobs:
       - name: Generate Xcode project
         working-directory: ios
         run: xcodegen generate
-      - name: Archive Mac Catalyst (unsigned)
+      - name: Archive Mac Catalyst (ad-hoc signed)
         working-directory: ios
+        # Let Xcode ad-hoc sign (identity "-") during the archive so the
+        # framework/extension/app bundles are assembled and signed in the right
+        # order (required to run on Apple Silicon).
         run: |
           set -euo pipefail
           xcodebuild archive \
@@ -77,27 +89,20 @@ jobs:
             -scheme Gintaras \
             -destination 'generic/platform=macOS,variant=Mac Catalyst' \
             -archivePath build/Gintaras-mac.xcarchive \
-            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="-" \
+            AD_HOC_CODE_SIGNING_ALLOWED=YES \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_ALLOWED=YES \
+            CODE_SIGN_ENTITLEMENTS="" \
+            PROVISIONING_PROFILE_SPECIFIER="" \
             CURRENT_PROJECT_VERSION=${{ github.run_number }}
-      - name: Ad-hoc sign (so it runs on Apple Silicon)
-        working-directory: ios
-        run: |
-          set -euo pipefail
-          APP=$(ls -d build/Gintaras-mac.xcarchive/Products/Applications/*.app | head -1)
-          # sign nested frameworks/extensions first, then the app bundle
-          find "$APP/Contents/Frameworks" -name "*.framework" -maxdepth 1 -print0 2>/dev/null \
-            | xargs -0 -I{} codesign --force --sign - --timestamp=none {} || true
-          find "$APP/Contents/PlugIns" -name "*.appex" -maxdepth 1 -print0 2>/dev/null \
-            | xargs -0 -I{} codesign --force --deep --sign - --timestamp=none {} || true
-          codesign --force --deep --sign - --timestamp=none "$APP"
-          codesign --verify --deep --strict "$APP" && echo "ad-hoc signature OK"
       - name: Build .pkg
         working-directory: ios
         run: |
           set -euo pipefail
           APP=$(ls -d build/Gintaras-mac.xcarchive/Products/Applications/*.app | head -1)
+          codesign --verify --deep --strict "$APP" && echo "ad-hoc signature OK"
           mkdir -p build/pkg
           productbuild --component "$APP" /Applications build/pkg/Gintaras-unsigned.pkg
           ls -lh build/pkg/Gintaras-unsigned.pkg
