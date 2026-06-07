@@ -13,3 +13,5 @@ pub mod transcriber;
 pub mod conversion;
 pub mod sequencer;
 pub mod synth;
+pub mod numbers;
+pub mod normalizer;
