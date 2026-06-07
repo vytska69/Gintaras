@@ -32,10 +32,11 @@ jobs:
       - name: Generate Xcode project
         working-directory: ios
         run: xcodegen generate
-      - name: Build (unsigned)
+      - name: Build (ad-hoc signed)
         working-directory: ios
-        # Use `build` (not `archive`) so the archive-time ValidateEmbeddedBinary
-        # step doesn't run against the unsigned embedded extension.
+        # Ad-hoc sign (identity "-") so the embedded extension's Info dictionary
+        # loads and ValidateEmbeddedBinary passes. The .ipa still has to be
+        # re-signed to install (AltStore/Sideloadly).
         run: |
           set -euo pipefail
           xcodebuild build \
@@ -44,11 +45,13 @@ jobs:
             -configuration Release \
             -destination 'generic/platform=iOS' \
             -derivedDataPath build/dd \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
             CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="-" \
+            AD_HOC_CODE_SIGNING_ALLOWED=YES \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=YES \
             CODE_SIGN_ENTITLEMENTS="" \
+            PROVISIONING_PROFILE_SPECIFIER="" \
             CURRENT_PROJECT_VERSION=${{ github.run_number }}
       - name: Package .ipa
         working-directory: ios

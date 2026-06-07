@@ -51,6 +51,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.rosasoft.wintalker.GintarasKit
         DEFINES_MODULE: "YES"
         SUPPORTS_MACCATALYST: "YES"
+        GENERATE_INFOPLIST_FILE: "YES"
 
   # Host app: preview + settings UI.
   Gintaras:
