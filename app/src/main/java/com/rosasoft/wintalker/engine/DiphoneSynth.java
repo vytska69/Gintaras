@@ -418,8 +418,11 @@ public final class DiphoneSynth {
                 int delta = nv - last;             // R13 = R8[0]-R10[R9-1]
                 int span = n7 - n9;                // R14 = R7-R9
                 for (int k = 0; k < span; k++)     // for R18 = 0 .. R14-1 (inclusive)
-                    // R10[R9+R18] = R11 + (R18+1)*R13/(R14+1)
-                    emit[n9 + k] = (short) (last + (long) (k + 1) * delta / (span + 1));
+                    // R10[R9+R18] = R11 + (R18+1)*R13/(R14+1). Lua computes the term
+                    // and sum in floating point, then the int16 store truncates the
+                    // WHOLE sum toward zero (not the quotient first).
+                    emit[n9 + k] = (short) (long)
+                        (last + (double) (k + 1) * delta / (span + 1));
             }
         } else {
             emit = prev;                           // unvoiced: R5 stays = prev.buffer
