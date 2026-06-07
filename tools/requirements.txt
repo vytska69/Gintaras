@@ -1,4 +1,0 @@
-# Reverse-engineering oracle dependencies (host-side only; not shipped in the app)
-unicorn>=2.1
-pyelftools>=0.30
-capstone>=5.0

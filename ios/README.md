@@ -1,9 +1,8 @@
 # Gintaras for iOS / macOS
 
 A full iOS port of the Gintaras Lithuanian text‑to‑speech engine. It reuses the
-**shared Rust core** (`../core`, `gintaras-core`) — the same byte‑exact
-reimplementation of the original WinTalker engine that powers the Android app —
-and exposes it on iOS in two ways:
+**shared Rust core** (`../core`, `gintaras-core`) — a byte‑exact reimplementation
+of the original WinTalker engine — and exposes it on iOS in two ways:
 
 1. **Host app** (`Gintaras`) — a SwiftUI app to preview the voice and configure
    reading settings (punctuation, number grouping, pitch/Tembras, pauses,
@@ -20,6 +19,7 @@ ios/
 ├── project.yml                   # XcodeGen project (app + extension + shared kit)
 ├── App/                          # host-app Info.plist + entitlements (App Group)
 ├── Voice/                        # extension Info.plist (NSExtension/ssyn) + entitlements
+├── Resources/                    # voice data (Gintaras.dta) + dictionaries
 └── Sources/
     ├── GintarasKit/              # shared Swift wrapper over the Rust C ABI
     │   ├── GintarasEngine.swift  #   load assets, synthesize → PCM / AVAudioPCMBuffer
@@ -30,9 +30,8 @@ ios/
 ```
 
 The voice data (`Gintaras.dta`) and dictionaries (`ruleslit.rul`, `stdlit.dct`,
-`spelllit.dct`, `punc0-3lit.dct`) live in `../app/src/main/assets/` and are
-bundled into both targets from there — a single source of truth shared with
-Android.
+`spelllit.dct`, `punc0-3lit.dct`) live in `Resources/` and are bundled into both
+targets — the validated original data, identical to the byte‑exact reference.
 
 ## Build (requires macOS + Xcode + Rust + XcodeGen)
 

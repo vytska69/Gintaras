@@ -3,7 +3,7 @@ use std::io::BufRead;
 fn vis(s:&str)->String{ s.chars().map(|c| if (c as u32)<128 {c.to_string()} else {format!("{{{:x}}}",c as u32)}).collect() }
 fn main(){
     let dta=std::env::args().nth(1).unwrap();
-    let asset=|n:&str| std::fs::read(format!("app/src/main/assets/{}",n)).ok();
+    let asset=|n:&str| std::fs::read(format!("../ios/Resources/{}",n)).ok();
     let data=std::fs::read(&dta).unwrap();
     let db=VoiceDatabase::parse(&data);
     let rules=asset("ruleslit.rul"); let std_=asset("stdlit.dct"); let spell=asset("spelllit.dct");

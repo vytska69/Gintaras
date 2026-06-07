@@ -1,7 +1,7 @@
 use gintaras_core::voicedb::VoiceDatabase;
 use std::collections::HashSet;
 fn main() {
-    let path = std::env::args().nth(1).unwrap_or("../app/src/main/assets/Gintaras.dta".into());
+    let path = std::env::args().nth(1).unwrap_or("../ios/Resources/Gintaras.dta".into());
     let data = std::fs::read(&path).expect("read dta");
     let db = VoiceDatabase::parse(&data);
     let mut names: HashSet<String> = HashSet::new();
