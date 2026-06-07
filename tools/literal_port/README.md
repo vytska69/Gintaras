@@ -63,45 +63,60 @@ KEY DECODE NOTES (for future reference):
 - All of root.22.6 callbacks (R15..R30) are the bare-concat callback; the earlier
   heuristic mis-attributed R27..R30 to the coda callback, which stole position 0.
 
-## DSP (voicesynth root.43–53) — partial, divergence characterized
+## DSP (voicesynth root.43–53) — SAMPLE-ACCURATE (byte-identical)
 
-`DiphoneSynth` is a structural port (root.52/51 tempo, root.48 PSOLA pitch
-regeneration, root.45 join, root.46 emit) but NOT yet byte-exact.
+`DiphoneSynth.synthesizeUnits` is a literal, sample-accurate port of the original
+4-coroutine PSOLA pipeline. Given the exact unit sequence the engine selects, the
+Java PCM is **byte-identical** to the running original.
 
-Measured vs reference PCM (head-aligned correlation over the voiced part):
-- mama 0.9989 (first samples are byte-identical to the reference)
-- obuolys 0.62, žodis 0.56, ačiū 0.55, saulė 0.35, laipsnių 0.29, labas 0.05
+Per-period length vs `dsp_oracle/dsp_periods_*.tsv` (root.46 yields): **EXACT**,
+354/354 + sunus, for mama, labas, saulė, žodis, ačiū, obuolys, laipsnių, lietuva,
+sūnus. Full-PCM correlation vs clean single-word reference: **1.000000 at lag 0;
+0 sample differences (maxDiff=0)** for all of them.
 
-WHY it diverges (precise, not a guess):
-- The original DSP is a 4-coroutine pipeline: root.51.1 (count expander) →
-  root.51 (tempo: per voiced record `acc += count*tempo`, yield `floor(acc)`,
-  `acc -= floor(acc)`; GLOBAL accumulator) → root.52 (dispatch 52.3/52.4/52.5) →
-  root.49 (period emit) → root.48 (PSOLA: rebuild each voiced period to a target
-  pitch length and linearly interpolate toward the next period) → root.45 (join)
-  → root.46 (yield one period). The per-period target length is `floor(base*scale)
-  + slew`, where `slew` is updated per period by root.47 toward a ProsodyChange
-  target (P1[3]=10 first half, P1[6]=160 second half), stepping `rshift(d,4)±1`,
-  clamped ±100. The oracle period streams confirm this: a clean linear pitch
-  ramp (e.g. labas 219→201 then a 2200-sample stop closure then recovery).
-- The current Java approximates the tempo accumulator and the pitch slew with a
-  different (PC3/PC6, >>4) formula and does not rebuild every period to the exact
-  target length, so for multi-syllable words the per-period COUNT and LENGTHS
-  drift; by mid-word Java and the reference are out of phase and a sample-level
-  correlation collapses even though the timbre/units are correct. mama (one
-  repeated syllable whose units need no length change) stays aligned → 0.9989.
-- The exact contour needs the runtime-set prosody state (root locals 44–48,
-  set during loadvoice/speak from P1.ProsodyChange) that cannot be resolved
-  statically; the `dsp_oracle/*.tsv` period-length streams are the anchor to
-  finish the port.
+Pipeline (file refs in `engine/decompiled/voicesynth.decomp.txt`):
+- **root.51.1** (1193) count expander → `VoiceDatabase.expandUnit`: resolve a unit
+  key to its leaf sample blocks, propagating the record count through alias
+  redirects with scale = count/Σcount. An aliasing record (e.g. `-žō`, one record
+  count=23 → an 11-block list) plays the 11 blocks at count 23/11 each (float).
+- **root.51** (1119) tempo: per VOICED record `acc += count*tempo` (tempo =
+  P0[6]/100 = 0.62 at rate=pitch=100); when `acc≥1` emit ONE event carrying
+  count=floor(acc), `acc -= floor(acc)`. Unvoiced → count=0 (single emit).
+- **root.52 / 52.5** (1260/1366) dispatch: voiced runs interpolate current→next
+  over `count` periods (root.52.4→root.49); the run ends at an unvoiced/absent next.
+- **root.49** (1002): emit `count` periods — data (j=0), root.44 frames
+  (j=1..count-2), data2 (j=count-1) — each via root.48.
+- **root.48** (845): per-period regeneration. target length = floor(BASE·100/pitch)
+  + slew (BASE=P0[5]=220). The stashed previous period is rebuilt to its own target
+  length (recorded prefix verbatim, tail bridged toward the next period's first
+  sample with denominator span+1), joined with root.45, and emitted; the current
+  period is stashed as a fresh copy. root.47 runs EVERY period.
+- **root.47** (754): slew toward target = −Prosody + PC/8 (float −18.75 / 0;
+  Prosody=20), PC = P1.ProsodyChange[6] first half / [3] second half by
+  phonecount/2 ≷ phoneorder; step rshift(diff,4)+1 up / −rshift(−diff,4) (≥1) down;
+  int slew clamped ±100.
+- **root.45** (661): two-pass (±4, ±8) seam join filter, mutating both the emitted
+  period and the carried copy.
+- **root.50** (1069): trailing P4.Silence=320 ms (one 441-sample remainder period
+  then three 2205-sample zero periods), routed through root.49→root.48.
 
-NEXT STEP to finish the DSP: port root.51.1/51/52/49/48/47/45/50 as a literal
-per-period pipeline driven by the prosody arrays already extracted
-(P0={10,10,0,1,220,62}, P1.ProsodyChange={0,50,10,20,50,160}); validate each
-word's emitted per-period length stream against `dsp_oracle/dsp_periods_*.tsv`
-(must match exactly), then the concatenated PCM against `ref_*.wav`.
+Two subtleties anchored to the oracle (documented in the code):
+- root.47's phoneorder leads emission by ONE event when a single-unit voiced run is
+  sandwiched between two unvoiced events (e.g. žodis `-žō` flips one period before
+  the /d/ closure); word-initial and multi-unit runs do not.
+- Lua does the bridge/interp math in floating point and the int16 store truncates
+  the whole sum toward zero; the Java port matches that rounding exactly.
+
+### Validating
+- `KeyVal`-style harness: feed the oracle's exact unit keys
+  (`/tmp/oracle_keys.tsv`, regenerated by `keydump.lua`) to `synthesizeUnits`,
+  diff `DiphoneSynth.lastPeriodLengths` against `dsp_oracle/dsp_periods_*.tsv`.
+- Reference PCM MUST be rendered one word per `speak` invocation (see
+  `oraclewav.lua`): the original carries prosody/slew state across words within a
+  single `speak` run, so multi-word renders are not a valid per-word ground truth.
 
 ## A/B WAVs
 
-`ab_wavs/ref_<word>.wav` (running original) vs `ab_wavs/port_<word>.wav` (this
-Java port) for žodis, obuolys, mama, saulė, ačiū, laipsnių. Units now match the
-original exactly; the audible difference is the DSP pitch/tempo contour above.
+`ab_wavs/ref_<word>.wav` (running original, one word per `speak`) vs
+`ab_wavs/port_<word>.wav` (this Java port) for mama, saulė, žodis, obuolys, ačiū,
+laipsnių, labas, sūnus, lietuva. The pairs are byte-identical.
