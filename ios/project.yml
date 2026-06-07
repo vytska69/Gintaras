@@ -1,0 +1,95 @@
+name: Gintaras
+options:
+  bundleIdPrefix: com.rosasoft.wintalker
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_STYLE: Automatic
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+
+# Shared voice assets (the validated original data), bundled into both the host
+# app and the extension. Symlinked/copied from the Android assets so there is a
+# single source of truth.
+fileGroups:
+  - ../app/src/main/assets
+
+packages: {}
+
+targets:
+
+  # Shared Swift wrapper around the Rust core. Linked by both the app and the
+  # system voice extension.
+  GintarasKit:
+    type: framework
+    platform: iOS
+    sources:
+      - path: Sources/GintarasKit
+    dependencies:
+      - framework: GintarasCoreFFI.xcframework
+        embed: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.rosasoft.wintalker.GintarasKit
+        DEFINES_MODULE: "YES"
+
+  # Host app: preview + settings UI.
+  Gintaras:
+    type: application
+    platform: iOS
+    info:
+      path: App/Info.plist
+    entitlements:
+      path: App/GintarasApp.entitlements
+    sources:
+      - path: Sources/GintarasApp
+      - path: ../app/src/main/assets
+        type: folder
+        buildPhase: resources
+        excludes:
+          - "*.md"
+    dependencies:
+      - target: GintarasKit
+        embed: true
+      - target: GintarasVoice
+        embed: true
+      - framework: GintarasCoreFFI.xcframework
+        embed: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.rosasoft.wintalker
+        INFOPLIST_KEY_CFBundleDisplayName: Gintaras
+
+  # System-wide Speech Synthesis Provider extension (the actual voice).
+  GintarasVoice:
+    type: app-extension
+    platform: iOS
+    info:
+      path: Voice/Info.plist
+    entitlements:
+      path: Voice/GintarasVoice.entitlements
+    sources:
+      - path: Sources/GintarasVoice
+      - path: ../app/src/main/assets
+        type: folder
+        buildPhase: resources
+        excludes:
+          - "*.md"
+    dependencies:
+      # The framework is embedded once by the host app; the extension links it
+      # and resolves it at runtime from the app's Frameworks dir.
+      - target: GintarasKit
+        embed: false
+      - framework: GintarasCoreFFI.xcframework
+        embed: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.rosasoft.wintalker.GintarasVoice
+        LD_RUNPATH_SEARCH_PATHS:
+          - "$(inherited)"
+          - "@executable_path/../../Frameworks"
