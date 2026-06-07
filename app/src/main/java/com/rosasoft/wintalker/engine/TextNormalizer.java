@@ -346,19 +346,22 @@ public final class TextNormalizer {
         return out;
     }
 
-    /** Lithuanian (and foreign) letter NAMES for spelled-out letters. Non-Lithuanian
-     *  letters get their Lithuanian names (x→"iks", q→"kū", w→"dviguboji vė"). The
-     *  names flow back through the normal transcriber. */
+    /** Lithuanian (and foreign) letter NAMES for spelled-out letters. Recovered
+     *  VERBATIM from the original engine's native speller (libtranscr {@code SpellZod})
+     *  by running it over every letter — not hand-written. (The original additionally
+     *  marks stress/length via ~`^ which the engine renders near-monotone; only the
+     *  letter name is kept here.) Notable forms: w→"dablvė", y→"y ilgoji",
+     *  į→"y nosinė", ų→"ū nosinė", ū→"ū ilgoji". */
     private static final Map<String, String> LETTER_NAMES = new java.util.HashMap<>();
     static {
         String[][] n = {
-            {"a","a"},{"ą","a nosinė"},{"b","bė"},{"c","cė"},{"č","čė"},{"d","dė"},
-            {"e","e"},{"ę","e nosinė"},{"ė","ė"},{"f","ef"},{"g","gė"},{"h","ha"},
-            {"i","i"},{"į","i nosinė"},{"y","i ilgoji"},{"j","jot"},{"k","ka"},
+            {"a","a"},{"ą","ą nosinė"},{"b","bė"},{"c","cė"},{"č","čė"},{"d","dė"},
+            {"e","e"},{"ę","ę nosinė"},{"ė","ė"},{"f","ef"},{"g","gė"},{"h","ha"},
+            {"i","i"},{"į","y nosinė"},{"y","y ilgoji"},{"j","jot"},{"k","ka"},
             {"l","el"},{"m","em"},{"n","en"},{"o","o"},{"p","pė"},{"r","er"},
-            {"s","es"},{"š","eš"},{"t","tė"},{"u","u"},{"ų","u nosinė"},
-            {"ū","u ilgoji"},{"v","vė"},{"z","zė"},{"ž","žė"},
-            {"w","dviguboji vė"},{"x","iks"},{"q","kū"},
+            {"s","es"},{"š","eš"},{"t","tė"},{"u","u"},{"ų","ū nosinė"},
+            {"ū","ū ilgoji"},{"v","vė"},{"z","zė"},{"ž","žė"},
+            {"w","dablvė"},{"x","iks"},{"q","kū"},
         };
         for (String[] e : n) LETTER_NAMES.put(e[0], e[1]);
     }
