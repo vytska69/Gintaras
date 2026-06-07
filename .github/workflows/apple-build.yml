@@ -1,0 +1,112 @@
+name: Apple build (unsigned .ipa + .pkg)
+
+# Builds, with no Apple account and no secrets:
+#   - an UNSIGNED iOS .ipa            (re-sign + sideload: AltStore / Sideloadly)
+#   - an ad-hoc signed Mac Catalyst .pkg
+# Both are uploaded as build artifacts. Neither is App Store / notarized — see
+# the install notes in ios/README.md.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [Ios]
+    paths:
+      - "ios/**"
+      - "core/**"
+      - ".github/workflows/apple-build.yml"
+
+jobs:
+  ios-ipa:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.app
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Build Rust core (iOS device only)
+        working-directory: ios
+        run: IPHONEOS_ONLY=1 ./build-rust.sh
+      - name: Generate Xcode project
+        working-directory: ios
+        run: xcodegen generate
+      - name: Archive (unsigned)
+        working-directory: ios
+        run: |
+          set -euo pipefail
+          xcodebuild archive \
+            -project Gintaras.xcodeproj \
+            -scheme Gintaras \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/Gintaras.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }}
+      - name: Package .ipa
+        working-directory: ios
+        run: |
+          set -euo pipefail
+          APP=$(ls -d build/Gintaras.xcarchive/Products/Applications/*.app | head -1)
+          rm -rf build/Payload && mkdir -p build/Payload
+          cp -R "$APP" build/Payload/
+          ( cd build && zip -qry Gintaras-unsigned.ipa Payload )
+          ls -lh build/Gintaras-unsigned.ipa
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Gintaras-ipa-unsigned
+          path: ios/build/Gintaras-unsigned.ipa
+          if-no-files-found: error
+
+  mac-pkg:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.app
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Build Rust core (Mac Catalyst only)
+        working-directory: ios
+        run: MACCATALYST_ONLY=1 ./build-rust.sh
+      - name: Generate Xcode project
+        working-directory: ios
+        run: xcodegen generate
+      - name: Archive Mac Catalyst (unsigned)
+        working-directory: ios
+        run: |
+          set -euo pipefail
+          xcodebuild archive \
+            -project Gintaras.xcodeproj \
+            -scheme Gintaras \
+            -destination 'generic/platform=macOS,variant=Mac Catalyst' \
+            -archivePath build/Gintaras-mac.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }}
+      - name: Ad-hoc sign (so it runs on Apple Silicon)
+        working-directory: ios
+        run: |
+          set -euo pipefail
+          APP=$(ls -d build/Gintaras-mac.xcarchive/Products/Applications/*.app | head -1)
+          # sign nested frameworks/extensions first, then the app bundle
+          find "$APP/Contents/Frameworks" -name "*.framework" -maxdepth 1 -print0 2>/dev/null \
+            | xargs -0 -I{} codesign --force --sign - --timestamp=none {} || true
+          find "$APP/Contents/PlugIns" -name "*.appex" -maxdepth 1 -print0 2>/dev/null \
+            | xargs -0 -I{} codesign --force --deep --sign - --timestamp=none {} || true
+          codesign --force --deep --sign - --timestamp=none "$APP"
+          codesign --verify --deep --strict "$APP" && echo "ad-hoc signature OK"
+      - name: Build .pkg
+        working-directory: ios
+        run: |
+          set -euo pipefail
+          APP=$(ls -d build/Gintaras-mac.xcarchive/Products/Applications/*.app | head -1)
+          mkdir -p build/pkg
+          productbuild --component "$APP" /Applications build/pkg/Gintaras-unsigned.pkg
+          ls -lh build/pkg/Gintaras-unsigned.pkg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Gintaras-pkg-adhoc
+          path: ios/build/pkg/Gintaras-unsigned.pkg
+          if-no-files-found: error

@@ -59,31 +59,48 @@ Catalyst** (`SUPPORTS_MACCATALYST`), sharing the same code and the same Rust cor
 > toolchain's `build-std`. Set `CATALYST=0 ./build-rust.sh` to skip Catalyst
 > (iOS device + simulator only).
 
-## CI: unsigned `.ipa` (no Apple account, no secrets)
+## CI: unsigned `.ipa` + `.pkg` (no Apple account, no secrets)
 
-`.github/workflows/ios-ipa.yml` builds an **unsigned iOS `.ipa`** on a macOS
-runner — no Apple Developer account, no certificates, no repository secrets. It
-runs on every push to `Ios` (touching `ios/` or `core/`) and on
-`workflow_dispatch`, and uploads the `.ipa` as a build artifact.
+`.github/workflows/apple-build.yml` builds, on a macOS runner with **no Apple
+Developer account and no repository secrets**:
 
-How it works: it builds only the iOS **device** slice of the Rust core
-(`IPHONEOS_ONLY=1 ./build-rust.sh`, so no simulator/Catalyst → no nightly),
-archives with `CODE_SIGNING_ALLOWED=NO`, then zips `Payload/Gintaras.app` into
-`Gintaras-unsigned.ipa`.
+- **`ios-ipa`** — an **unsigned iOS `.ipa`**. Builds only the iOS device slice of
+  the Rust core (`IPHONEOS_ONLY=1`, so no simulator/Catalyst → no nightly),
+  archives with `CODE_SIGNING_ALLOWED=NO`, zips `Payload/Gintaras.app` into
+  `Gintaras-unsigned.ipa`.
+- **`mac-pkg`** — an **ad-hoc signed Mac Catalyst `.pkg`**. Builds the Catalyst
+  slice (`MACCATALYST_ONLY=1`, nightly `build-std`), archives unsigned, then
+  ad-hoc signs the app + framework + extension (`codesign --sign -`, required so
+  it runs on Apple Silicon) and wraps it with `productbuild`.
 
-> An unsigned `.ipa` **cannot be installed directly** — it has to be re‑signed
-> with your own identity. Easiest options:
-> - **Sideloadly** or **AltStore** — drop in the `.ipa`, sign with your Apple ID
->   (free account works; re‑sign every 7 days), install over USB/Wi‑Fi.
-> - **`codesign`/`xcrun`** locally with your own cert + provisioning profile.
->
-> Re‑signing also re‑signs the bundled `GintarasVoice` extension and applies the
-> App Group entitlement (`group.com.rosasoft.wintalker`); Sideloadly/AltStore do
-> this automatically when you sign the app.
+Both run on every push to `Ios` (touching `ios/` or `core/`) and on
+`workflow_dispatch`, and upload their result as a build artifact.
 
-A signed App Store `.ipa`/`.pkg` pipeline (Xcode automatic provisioning + App
-Store Connect API key) can be added later once an Apple Developer account is in
-place.
+### Installing the `.ipa`
+
+An unsigned `.ipa` **cannot be installed directly** — re-sign it with your own
+identity:
+
+- **Sideloadly** or **AltStore** — drop in the `.ipa`, sign with your Apple ID
+  (free account works; re-sign every 7 days), install over USB/Wi-Fi. This also
+  re-signs the bundled `GintarasVoice` extension and applies the App Group.
+- **`codesign`/`xcrun`** locally with your own cert + provisioning profile.
+
+### Installing the `.pkg`
+
+It is ad-hoc signed, **not notarized**, so Gatekeeper will warn:
+
+```sh
+sudo installer -pkg Gintaras-unsigned.pkg -target /
+# or: right-click the .pkg → Open → Open anyway
+```
+
+> Caveat: ad-hoc signing can't grant the **App Group** / system-voice
+> entitlements (those need a real Apple Team + provisioning). So the Mac app
+> launches and you can preview the voice, but the *system* Speech Synthesis
+> Provider and cross-process settings sharing need proper signing. A signed App
+> Store `.ipa`/`.pkg` pipeline can be added later once a Developer account is in
+> place.
 
 ## Enabling the system voice
 
