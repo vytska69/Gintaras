@@ -12,3 +12,7 @@ __pycache__/
 
 # Transient agent worktrees
 .claude/worktrees/
+
+# Rust core build artifacts
+/core/target/
+core/Cargo.lock
