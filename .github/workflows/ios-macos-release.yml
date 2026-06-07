@@ -1,0 +1,165 @@
+name: iOS & macOS (App Store)
+
+# Builds the Apple port: a signed iOS .ipa and a signed Mac Catalyst .pkg,
+# both for App Store distribution. Optionally uploads them to App Store Connect
+# (TestFlight). Runs manually or on a version tag.
+#
+# Required repository secrets (Settings -> Secrets and variables -> Actions):
+#   APPLE_TEAM_ID            Apple Developer Team ID (10 chars)
+#   BUILD_CERTIFICATE_BASE64 base64 of the "Apple Distribution" cert (.p12)
+#   P12_PASSWORD             password for that .p12
+#   KEYCHAIN_PASSWORD        any string (temp keychain password)
+#   ASC_KEY_ID               App Store Connect API key id
+#   ASC_ISSUER_ID            App Store Connect API issuer id
+#   ASC_API_KEY_BASE64       base64 of the App Store Connect API key (.p8)
+#
+# Signing uses Xcode automatic provisioning with the App Store Connect API key
+# (-allowProvisioningUpdates), so profiles for the app + extension are created
+# and downloaded by Xcode — no need to store each profile as a secret.
+
+on:
+  workflow_dispatch:
+    inputs:
+      upload:
+        description: "Upload builds to App Store Connect (TestFlight)"
+        type: boolean
+        default: false
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: macos-15
+    env:
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.app
+
+      - name: Install Rust toolchains
+        run: |
+          rustup toolchain install stable nightly
+          rustup component add rust-src --toolchain nightly
+          rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Import signing certificate
+        env:
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          CERT_PATH="$RUNNER_TEMP/cert.p12"
+          KEYCHAIN="$RUNNER_TEMP/build.keychain-db"
+          echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o "$CERT_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$CERT_PATH" -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" >/dev/null
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+
+      - name: Set up App Store Connect API key
+        env:
+          ASC_API_KEY_BASE64: ${{ secrets.ASC_API_KEY_BASE64 }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.appstoreconnect/private_keys"
+          echo -n "$ASC_API_KEY_BASE64" | base64 --decode \
+            -o "$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
+          echo "ASC_KEY_PATH=$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8" >> "$GITHUB_ENV"
+
+      - name: Build Rust core xcframework
+        working-directory: ios
+        run: ./build-rust.sh
+
+      - name: Generate Xcode project
+        working-directory: ios
+        run: xcodegen generate
+
+      - name: Inject team into export options
+        working-directory: ios
+        run: |
+          for f in ExportOptions/iOS-AppStore.plist ExportOptions/macCatalyst-AppStore.plist; do
+            /usr/libexec/PlistBuddy -c "Add :teamID string $APPLE_TEAM_ID" "$f" 2>/dev/null \
+              || /usr/libexec/PlistBuddy -c "Set :teamID $APPLE_TEAM_ID" "$f"
+          done
+
+      - name: Archive & export iOS .ipa
+        working-directory: ios
+        run: |
+          set -euo pipefail
+          xcodebuild archive \
+            -project Gintaras.xcodeproj \
+            -scheme Gintaras \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/Gintaras-iOS.xcarchive \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            CODE_SIGN_STYLE=Automatic \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }}
+          xcodebuild -exportArchive \
+            -archivePath build/Gintaras-iOS.xcarchive \
+            -exportPath build/ipa \
+            -exportOptionsPlist ExportOptions/iOS-AppStore.plist \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+
+      - name: Archive & export Mac Catalyst .pkg
+        working-directory: ios
+        run: |
+          set -euo pipefail
+          xcodebuild archive \
+            -project Gintaras.xcodeproj \
+            -scheme Gintaras \
+            -destination 'generic/platform=macOS,variant=Mac Catalyst' \
+            -archivePath build/Gintaras-mac.xcarchive \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            CODE_SIGN_STYLE=Automatic \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }}
+          xcodebuild -exportArchive \
+            -archivePath build/Gintaras-mac.xcarchive \
+            -exportPath build/pkg \
+            -exportOptionsPlist ExportOptions/macCatalyst-AppStore.plist \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Gintaras-AppStore
+          path: |
+            ios/build/ipa/*.ipa
+            ios/build/pkg/*.pkg
+          if-no-files-found: error
+
+      - name: Upload to App Store Connect (TestFlight)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.upload }}
+        working-directory: ios
+        run: |
+          set -euo pipefail
+          IPA=$(ls build/ipa/*.ipa | head -1)
+          PKG=$(ls build/pkg/*.pkg | head -1)
+          xcrun altool --upload-app -f "$IPA" -t ios \
+            --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
+          xcrun altool --upload-app -f "$PKG" -t macos \
+            --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"

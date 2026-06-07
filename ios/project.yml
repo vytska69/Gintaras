@@ -8,10 +8,14 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.0"
-    DEVELOPMENT_TEAM: ""
+    DEVELOPMENT_TEAM: ""           # injected by CI / set in Xcode (Apple Team ID)
     CODE_SIGN_STYLE: Automatic
     MARKETING_VERSION: "1.0"
     CURRENT_PROJECT_VERSION: "1"
+    # Mac Catalyst: run the same app on macOS (App Store). Keep the iOS bundle id.
+    SUPPORTS_MACCATALYST: "YES"
+    DERIVE_MACCATALYST_PRODUCT_BUNDLE_IDENTIFIER: "NO"
+    MACOSX_DEPLOYMENT_TARGET: "13.0"
 
 # Shared voice assets (the validated original data), bundled into both the host
 # app and the extension.
@@ -19,6 +23,16 @@ fileGroups:
   - Resources
 
 packages: {}
+
+schemes:
+  Gintaras:
+    build:
+      targets:
+        Gintaras: all
+    archive:
+      config: Release
+    run:
+      config: Debug
 
 targets:
 
@@ -36,6 +50,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.rosasoft.wintalker.GintarasKit
         DEFINES_MODULE: "YES"
+        SUPPORTS_MACCATALYST: "YES"
 
   # Host app: preview + settings UI.
   Gintaras:
@@ -63,6 +78,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.rosasoft.wintalker
         INFOPLIST_KEY_CFBundleDisplayName: Gintaras
+        SUPPORTS_MACCATALYST: "YES"
 
   # System-wide Speech Synthesis Provider extension (the actual voice).
   GintarasVoice:
@@ -89,6 +105,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.rosasoft.wintalker.GintarasVoice
+        SUPPORTS_MACCATALYST: "YES"
         LD_RUNPATH_SEARCH_PATHS:
           - "$(inherited)"
           - "@executable_path/../../Frameworks"

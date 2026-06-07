@@ -51,7 +51,46 @@ open Gintaras.xcodeproj
 
 In Xcode, set your Development Team on all three targets (the App Group
 `group.com.rosasoft.wintalker` requires a provisioning profile), then run the
-`Gintaras` scheme on a device or simulator.
+`Gintaras` scheme on a device or simulator. The app also runs on **Mac
+Catalyst** (`SUPPORTS_MACCATALYST`), sharing the same code and the same Rust core.
+
+> Mac Catalyst uses the Rust `*-apple-ios-macabi` targets, which are tier‑3 and
+> have no prebuilt std, so `build-rust.sh` builds them with the **nightly**
+> toolchain's `build-std`. Set `CATALYST=0 ./build-rust.sh` to skip Catalyst
+> (iOS device + simulator only).
+
+## CI: signed App Store builds (.ipa + .pkg)
+
+`.github/workflows/ios-macos-release.yml` builds a signed **iOS `.ipa`** and a
+signed **Mac Catalyst `.pkg`**, both for App Store distribution, on a macOS
+runner. It runs on `workflow_dispatch` (with an optional *upload to TestFlight*
+toggle) and on version tags (`v*`).
+
+Signing uses **Xcode automatic provisioning driven by an App Store Connect API
+key** (`-allowProvisioningUpdates`), so Xcode creates/downloads the profiles for
+the app *and* the extension — no per‑target profile secrets needed. Add these
+repository secrets (Settings → Secrets and variables → Actions):
+
+| Secret | What |
+|---|---|
+| `APPLE_TEAM_ID` | Apple Developer Team ID (10 chars) |
+| `BUILD_CERTIFICATE_BASE64` | base64 of the *Apple Distribution* cert (`.p12`) |
+| `P12_PASSWORD` | password for that `.p12` |
+| `KEYCHAIN_PASSWORD` | any string (temp keychain password) |
+| `ASC_KEY_ID` | App Store Connect API key id |
+| `ASC_ISSUER_ID` | App Store Connect API issuer id |
+| `ASC_API_KEY_BASE64` | base64 of the API key (`.p8`) |
+
+```sh
+# create the .p12 / .p8 base64 secrets, e.g.
+base64 -i Distribution.p12 | pbcopy
+base64 -i AuthKey_XXXXXX.p8 | pbcopy
+```
+
+The App ID must have **App Groups** (`group.com.rosasoft.wintalker`) enabled, and
+the bundle ids (`com.rosasoft.wintalker`, `.GintarasVoice`) must exist or be
+creatable by the API key. Artifacts are uploaded to the workflow run; with the
+*upload* toggle they are also pushed to App Store Connect via `altool`.
 
 ## Enabling the system voice
 
@@ -72,5 +111,5 @@ shared App Group.
 - `DEVELOPMENT_TEAM`, code‑signing and framework embedding for the extension are
   the usual Xcode concerns — `project.yml` embeds `GintarasKit` once in the host
   app and resolves it from the extension at runtime via `@executable_path`.
-- The same Rust core builds for macOS; a Catalyst/macOS target can be added to
-  `project.yml` later.
+- macOS ships as **Mac Catalyst** (App Store `.pkg`) from the same targets; a
+  fully native AppKit target could be added later if desired.
