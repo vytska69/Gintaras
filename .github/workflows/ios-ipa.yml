@@ -1,0 +1,72 @@
+name: iOS .ipa (unsigned)
+
+# Builds an UNSIGNED iOS .ipa on a macOS runner — no Apple account, no secrets.
+# Download the artifact and sign/sideload it yourself (AltStore, Sideloadly, or
+# `codesign` with your own cert/profile) to install on a device.
+#
+# Note: an unsigned .ipa cannot be installed directly; it must be re-signed.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [Ios]
+    paths:
+      - "ios/**"
+      - "core/**"
+      - ".github/workflows/ios-ipa.yml"
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.app
+
+      - name: Install Rust targets
+        run: rustup target add aarch64-apple-ios
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Build Rust core xcframework (iOS device only)
+        working-directory: ios
+        # device slice is enough for an .ipa; skip simulator + Catalyst (no nightly)
+        run: CATALYST=0 IPHONEOS_ONLY=1 ./build-rust.sh
+
+      - name: Generate Xcode project
+        working-directory: ios
+        run: xcodegen generate
+
+      - name: Archive (unsigned)
+        working-directory: ios
+        run: |
+          set -euo pipefail
+          xcodebuild archive \
+            -project Gintaras.xcodeproj \
+            -scheme Gintaras \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/Gintaras.xcarchive \
+            -skipPackagePluginValidation \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }}
+
+      - name: Package .ipa
+        working-directory: ios
+        run: |
+          set -euo pipefail
+          APP=$(ls -d build/Gintaras.xcarchive/Products/Applications/*.app | head -1)
+          rm -rf build/Payload && mkdir -p build/Payload
+          cp -R "$APP" build/Payload/
+          ( cd build && zip -qry Gintaras-unsigned.ipa Payload )
+          ls -lh build/Gintaras-unsigned.ipa
+
+      - name: Upload .ipa artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Gintaras-ipa-unsigned
+          path: ios/build/Gintaras-unsigned.ipa
+          if-no-files-found: error

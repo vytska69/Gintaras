@@ -10,19 +10,25 @@ set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 CORE="$HERE/../core"
 CATALYST="${CATALYST:-1}"
+IPHONEOS_ONLY="${IPHONEOS_ONLY:-0}"   # device slice only (fast path for an .ipa)
 LIB=libgintaras_core.a
 
-rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios >/dev/null 2>&1 || true
+if [ "$IPHONEOS_ONLY" = "1" ]; then CATALYST=0; fi
+
+rustup target add aarch64-apple-ios >/dev/null 2>&1 || true
+[ "$IPHONEOS_ONLY" = "1" ] || rustup target add aarch64-apple-ios-sim x86_64-apple-ios >/dev/null 2>&1 || true
 
 ( cd "$CORE"
   cargo build --release --target aarch64-apple-ios
-  cargo build --release --target aarch64-apple-ios-sim
-  cargo build --release --target x86_64-apple-ios
-  mkdir -p target/ios-sim-universal
-  lipo -create \
-    target/aarch64-apple-ios-sim/release/$LIB \
-    target/x86_64-apple-ios/release/$LIB \
-    -output target/ios-sim-universal/$LIB
+  if [ "$IPHONEOS_ONLY" != "1" ]; then
+    cargo build --release --target aarch64-apple-ios-sim
+    cargo build --release --target x86_64-apple-ios
+    mkdir -p target/ios-sim-universal
+    lipo -create \
+      target/aarch64-apple-ios-sim/release/$LIB \
+      target/x86_64-apple-ios/release/$LIB \
+      -output target/ios-sim-universal/$LIB
+  fi
 
   if [ "$CATALYST" = "1" ]; then
     rustup toolchain install nightly >/dev/null 2>&1 || true
@@ -48,10 +54,10 @@ EOM
 
 OUT="$HERE/GintarasCoreFFI.xcframework"
 rm -rf "$OUT"
-ARGS=(
-  -library "$CORE/target/aarch64-apple-ios/release/$LIB" -headers "$HDR"
-  -library "$CORE/target/ios-sim-universal/$LIB" -headers "$HDR"
-)
+ARGS=( -library "$CORE/target/aarch64-apple-ios/release/$LIB" -headers "$HDR" )
+if [ "$IPHONEOS_ONLY" != "1" ]; then
+  ARGS+=( -library "$CORE/target/ios-sim-universal/$LIB" -headers "$HDR" )
+fi
 if [ "$CATALYST" = "1" ]; then
   ARGS+=( -library "$CORE/target/maccatalyst-universal/$LIB" -headers "$HDR" )
 fi

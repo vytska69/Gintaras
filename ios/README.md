@@ -59,38 +59,31 @@ Catalyst** (`SUPPORTS_MACCATALYST`), sharing the same code and the same Rust cor
 > toolchain's `build-std`. Set `CATALYST=0 ./build-rust.sh` to skip Catalyst
 > (iOS device + simulator only).
 
-## CI: signed App Store builds (.ipa + .pkg)
+## CI: unsigned `.ipa` (no Apple account, no secrets)
 
-`.github/workflows/ios-macos-release.yml` builds a signed **iOS `.ipa`** and a
-signed **Mac Catalyst `.pkg`**, both for App Store distribution, on a macOS
-runner. It runs on `workflow_dispatch` (with an optional *upload to TestFlight*
-toggle) and on version tags (`v*`).
+`.github/workflows/ios-ipa.yml` builds an **unsigned iOS `.ipa`** on a macOS
+runner — no Apple Developer account, no certificates, no repository secrets. It
+runs on every push to `Ios` (touching `ios/` or `core/`) and on
+`workflow_dispatch`, and uploads the `.ipa` as a build artifact.
 
-Signing uses **Xcode automatic provisioning driven by an App Store Connect API
-key** (`-allowProvisioningUpdates`), so Xcode creates/downloads the profiles for
-the app *and* the extension — no per‑target profile secrets needed. Add these
-repository secrets (Settings → Secrets and variables → Actions):
+How it works: it builds only the iOS **device** slice of the Rust core
+(`IPHONEOS_ONLY=1 ./build-rust.sh`, so no simulator/Catalyst → no nightly),
+archives with `CODE_SIGNING_ALLOWED=NO`, then zips `Payload/Gintaras.app` into
+`Gintaras-unsigned.ipa`.
 
-| Secret | What |
-|---|---|
-| `APPLE_TEAM_ID` | Apple Developer Team ID (10 chars) |
-| `BUILD_CERTIFICATE_BASE64` | base64 of the *Apple Distribution* cert (`.p12`) |
-| `P12_PASSWORD` | password for that `.p12` |
-| `KEYCHAIN_PASSWORD` | any string (temp keychain password) |
-| `ASC_KEY_ID` | App Store Connect API key id |
-| `ASC_ISSUER_ID` | App Store Connect API issuer id |
-| `ASC_API_KEY_BASE64` | base64 of the API key (`.p8`) |
+> An unsigned `.ipa` **cannot be installed directly** — it has to be re‑signed
+> with your own identity. Easiest options:
+> - **Sideloadly** or **AltStore** — drop in the `.ipa`, sign with your Apple ID
+>   (free account works; re‑sign every 7 days), install over USB/Wi‑Fi.
+> - **`codesign`/`xcrun`** locally with your own cert + provisioning profile.
+>
+> Re‑signing also re‑signs the bundled `GintarasVoice` extension and applies the
+> App Group entitlement (`group.com.rosasoft.wintalker`); Sideloadly/AltStore do
+> this automatically when you sign the app.
 
-```sh
-# create the .p12 / .p8 base64 secrets, e.g.
-base64 -i Distribution.p12 | pbcopy
-base64 -i AuthKey_XXXXXX.p8 | pbcopy
-```
-
-The App ID must have **App Groups** (`group.com.rosasoft.wintalker`) enabled, and
-the bundle ids (`com.rosasoft.wintalker`, `.GintarasVoice`) must exist or be
-creatable by the API key. Artifacts are uploaded to the workflow run; with the
-*upload* toggle they are also pushed to App Store Connect via `altool`.
+A signed App Store `.ipa`/`.pkg` pipeline (Xcode automatic provisioning + App
+Store Connect API key) can be added later once an Apple Developer account is in
+place.
 
 ## Enabling the system voice
 
