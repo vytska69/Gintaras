@@ -261,6 +261,53 @@ public final class VoiceDatabase {
         return out;
     }
 
+    /** A leaf sample block expanded from a unit by root.51.1, with the (possibly
+     *  fractional) record count and the voiced bit (typ&1) it should be played at. */
+    public static final class LeafRec {
+        public final short[] samples;
+        public final boolean voiced;
+        public final double count;
+        LeafRec(short[] samples, boolean voiced, double count) {
+            this.samples = samples; this.voiced = voiced; this.count = count;
+        }
+    }
+
+    /** Faithful port of voicesynth root.51.1 (count expander): resolve a unit-key
+     *  entry to its leaf sample blocks, propagating the record count with the
+     *  per-level scaling. root.51.1 (decompiled lines 1193-1258):
+     *    - if the key resolves to a leaf block -> yield(block, count, typ);
+     *    - else (a list of records) sum their counts; if an incoming count is given
+     *      and != 1, scale = count/total else 1; recurse each record with
+     *      count*scale. This is what makes an aliasing record (e.g. "-žō" with one
+     *      record count=23 pointing at an 11-block list) play those 11 blocks at
+     *      count = 1 * 23/11 each, rather than 11 blocks at count=1.
+     *  The top-level call has no incoming count (scale 1). */
+    public List<LeafRec> expandUnit(Entry e) {
+        List<LeafRec> out = new ArrayList<>();
+        expandEntry(e, 0.0, false, 0, out);   // incoming count nil, typ from records
+        return out;
+    }
+
+    private void expandEntry(Entry e, double inCount, boolean haveCount, int depth,
+                             List<LeafRec> out) {
+        if (e == null || depth > 8) return;
+        // sum of record counts (root.51.1 0020-0028)
+        double total = 0;
+        for (Record r : e.records) total += r.count;
+        // scale = (count given and != 1) ? count/total : 1 (root.51.1 0029-0036)
+        double scale = (haveCount && inCount != 1 && total != 0) ? inCount / total : 1.0;
+        for (Record r : e.records) {                    // root.51.1 0037-0050
+            double c = r.count * scale;
+            if (r.isNumeric()) {                        // key -> leaf sample block (cdata)
+                SampleBlock b = blocks.get(r.numKey);
+                if (b != null) out.add(new LeafRec(b.samples, (r.typ & 1) != 0, c));
+            } else {                                    // key -> another entry (list)
+                Entry t = diphoneIndex().get(unitName(r.stringKey));
+                if (t != null && t != e) expandEntry(t, c, true, depth + 1, out);
+            }
+        }
+    }
+
     private short[] unitWaveform(Entry e, int depth) {
         if (e == null || depth > 4) return new short[0];
         // alias: a single string-key record points at another unit by name

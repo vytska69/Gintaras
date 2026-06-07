@@ -203,8 +203,8 @@ public final class DiphoneSynth {
      *  voiced bit (typ&1), its record count and its source unit index (1-based,
      *  root.51 loop var -> root.52 phoneorder). */
     private static final class Rec {
-        final short[] data; final boolean voiced; final int count; final int unit;
-        Rec(short[] data, boolean voiced, int count, int unit) {
+        final short[] data; final boolean voiced; final double count; final int unit;
+        Rec(short[] data, boolean voiced, double count, int unit) {
             this.data = data; this.voiced = voiced; this.count = count; this.unit = unit;
         }
     }
@@ -221,11 +221,11 @@ public final class DiphoneSynth {
             VoiceDatabase.Entry e = lookup(name);
             if (e == null) e = lookupRelaxed(name);
             if (e == null) continue;
-            List<VoiceDatabase.Period> ps = db.unitTypedPeriods(e);
+            List<VoiceDatabase.LeafRec> ps = db.expandUnit(e);
             if (ps.isEmpty()) continue;
             phonecount++;
-            for (VoiceDatabase.Period p : ps)
-                recs.add(new Rec(p.samples, p.voiced, p.count <= 0 ? 1 : p.count, phonecount));
+            for (VoiceDatabase.LeafRec p : ps)
+                recs.add(new Rec(p.samples, p.voiced, p.count, phonecount));
         }
         if (recs.isEmpty()) return new short[0];
 
@@ -237,7 +237,7 @@ public final class DiphoneSynth {
         double acc = 0;
         for (Rec r : recs) {
             if (r.voiced) {
-                acc += (double) r.count * TEMPO_FACTOR;
+                acc += r.count * TEMPO_FACTOR;
                 int n = (int) Math.floor(acc);
                 if (n >= 1) {
                     events.add(new Rec(r.data, true, n, r.unit));
@@ -256,11 +256,20 @@ public final class DiphoneSynth {
         emitPrevBuf = null;   // root.48 UV5 (prev period state)
         outPeriods = new ArrayList<>();
 
+        // phoneorder (rootlocal[66]) is root.51's loop variable, updated when it
+        // STARTS a new unit and read by root.47 inside root.48. root.52/52.5 pull
+        // from root.51 through a wrapped coroutine; root.52.5 pulls the NEXT event
+        // BEFORE emitting the current one's periods. root.51 sets phoneorder at the
+        // top of its unit loop, so phoneorder advances to the next unit exactly when
+        // the FIRST event of that next unit is pulled. The current event's periods
+        // thus see phoneorder = the current event's own unit, EXCEPT the last event
+        // of a unit, which is emitted after the lookahead pull has already advanced
+        // root.51 into the next unit -> it sees the next unit's index.
         int i = 0;
         while (i < events.size()) {
-            Rec ev = events.get(i);
+            Rec ev = events.get(i);          // root.52 for-iter pull
             if (!ev.voiced || ev.count < 1) {
-                // root.52 -> root.52.3: single unvoiced/short period.
+                // root.52 -> root.52.3: single unvoiced/short period (no lookahead).
                 root49(ev.data, null, 1, ev.voiced, phonecount, ev.unit);
                 i++;
                 continue;
@@ -275,7 +284,7 @@ public final class DiphoneSynth {
                     root49(cur.data, cur.data, cur.count, true, phonecount, cur.unit);
                     break;
                 }
-                Rec nxt = events.get(i);
+                Rec nxt = events.get(i);      // root.52.5 0013-0014 lookahead pull
                 if (nxt.voiced && nxt.count >= 1) {
                     // root.52.5 0024: interp cur->next over cur.count, recurse(next).
                     root49(cur.data, nxt.data, cur.count, true, phonecount, cur.unit);
@@ -324,9 +333,9 @@ public final class DiphoneSynth {
     /** voicesynth root.49 (line 1002): render `count` periods between data and
      *  data2 (each through root.48). data (j=0), root.44 frames (j=1..count-2),
      *  data2 (j=count-1). count<=1 emits a single period from data. */
-    private void root49(short[] data, short[] data2, int count, boolean voiced,
+    private void root49(short[] data, short[] data2, double count, boolean voiced,
                         int phonecount, int phoneorder) {
-        int n = count < 1 ? 1 : count;
+        int n = count < 1 ? 1 : (int) count;            // R1 = count or 1 (root.49 0003-0006)
         int typBit = voiced ? 1 : 0;
         root48(data, typBit, phonecount, phoneorder);       // first period (j=0)
         for (int j = 1; j <= n - 2; j++) {                  // root.49 loop R6=2..n-1
@@ -357,8 +366,11 @@ public final class DiphoneSynth {
     /** voicesynth root.48 (line 845): per-period pitch regeneration. */
     private void root48(short[] data, int typBit, int phonecount, int phoneorder) {
         int target = BASE_PERIOD;                 // floor(BASE * 100/pitch), pitch=100
-        if (phonecount != 0 || phoneorder != 0)   // 4-arg call -> run root.47
-            root47(phonecount, phoneorder);
+        // root.48 0009-0012: root.47 is called UNCONDITIONALLY every period (the
+        // args may be 0/nil). root.47 only re-selects its target when both args are
+        // present, but it always advances the slew one step -> the pitch contour
+        // changes on every emitted period, including count>1 interpolation frames.
+        root47(phonecount, phoneorder);
         target += slew;
         if (emitPrevBuf == null) {
             // first period: stash, no emit (root.48 0015-0039)
