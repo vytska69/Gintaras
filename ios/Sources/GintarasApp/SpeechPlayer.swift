@@ -6,7 +6,7 @@ final class SpeechPlayer {
     private let engine = AVAudioEngine()
     private let node = AVAudioPlayerNode()
     /// Native voice format: 22050 Hz mono float.
-    let format = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 22050, channels: 1)!
+    let format = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 22050, channels: 1, interleaved: false)!
 
     init() {
         engine.attach(node)

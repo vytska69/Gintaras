@@ -57,7 +57,7 @@ struct ContentView: View {
                     }
                 }
                 Section {
-                    Text("Sisteminis balsas: įjunk „Gintaras" Nustatymai → Pritaikymas neįgaliesiems → Įgarsinamasis turinys → Balsai.")
+                    Text("Sisteminis balsas: įjunk „Gintaras“ Nustatymai → Pritaikymas neįgaliesiems → Įgarsinamasis turinys → Balsai.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
             }
