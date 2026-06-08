@@ -32,7 +32,15 @@ public final class GintarasEngine {
         }
         guard let dta = load("Gintaras", "dta") else { return nil }
         let rules = load("ruleslit", "rul")
-        let std = load("stdlit", "dct")
+        // Prepend the user dictionary (App Group) to the built-in stdlit.dct so
+        // custom pronunciations apply just like the built-ins.
+        var std = load("stdlit", "dct")
+        let userDct = GintarasSettings.userDictionaryDct()
+        if !userDct.isEmpty {
+            var combined = Data((userDct + "\n").utf8)
+            combined.append(std ?? Data())
+            std = combined
+        }
         let spell = load("spelllit", "dct")
         let p0 = load("punc0lit", "dct"), p1 = load("punc1lit", "dct")
         let p2 = load("punc2lit", "dct"), p3 = load("punc3lit", "dct")

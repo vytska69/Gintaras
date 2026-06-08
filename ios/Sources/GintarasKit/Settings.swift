@@ -19,6 +19,7 @@ public enum GintarasSettings {
     public static let kPauseWord = "pause_word"
     public static let kPauseSentence = "pause_sentence"
     public static let kPitch = "pitch" // app "Tembras" (multiplies the request pitch)
+    public static let kUserDict = "user_dict" // [[word, replacement], …]
 
     private static func int(_ key: String, _ def: Int32) -> Int32 {
         store.object(forKey: key) == nil ? def : Int32(store.integer(forKey: key))
@@ -31,6 +32,31 @@ public enum GintarasSettings {
     public static func set(_ key: String, _ value: Bool) { store.set(value, forKey: key) }
     public static func intValue(_ key: String, _ def: Int32) -> Int32 { int(key, def) }
     public static func boolValue(_ key: String, _ def: Bool) -> Bool { bool(key, def) }
+
+    // MARK: - User dictionary (custom pronunciations)
+
+    public typealias DictEntry = (word: String, replacement: String)
+
+    public static func userDictionary() -> [DictEntry] {
+        guard let arr = store.array(forKey: kUserDict) as? [[String]] else { return [] }
+        return arr.compactMap { $0.count == 2 ? (word: $0[0], replacement: $0[1]) : nil }
+    }
+
+    public static func setUserDictionary(_ entries: [DictEntry]) {
+        store.set(entries.map { [$0.word, $0.replacement] }, forKey: kUserDict)
+    }
+
+    /// User entries rendered in the built-in dictionary's text format
+    /// ("word replacement", one per line). Prepended to `stdlit.dct` so user
+    /// pronunciations win over the built-ins (longest-/first-stem wins).
+    public static func userDictionaryDct() -> String {
+        userDictionary()
+            .map { (w, r) in (w.split(separator: " ").first.map(String.init) ?? w,
+                              r.trimmingCharacters(in: .whitespacesAndNewlines)) }
+            .filter { !$0.0.isEmpty && !$0.1.isEmpty }
+            .map { "\($0.0.lowercased()) \($0.1)" }
+            .joined(separator: "\n")
+    }
 
     /// Engine params from the stored settings, combined with the per-request
     /// `rate`/`pitch` the system passes (both percentages, 100 = normal).

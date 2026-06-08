@@ -2,7 +2,7 @@ import SwiftUI
 import GintarasKit
 
 final class PreviewModel: ObservableObject {
-    private let engine = GintarasEngine(bundle: .main)
+    private var engine = GintarasEngine(bundle: .main)
     private let player = SpeechPlayer()
 
     @Published var text = "Labas! Čia lietuviškas Gintaro balsas."
@@ -11,6 +11,12 @@ final class PreviewModel: ObservableObject {
     @Published var ready = false
 
     init() { ready = engine != nil }
+
+    /// Rebuild the engine so user-dictionary changes take effect in the preview.
+    func reloadEngine() {
+        engine = GintarasEngine(bundle: .main)
+        ready = engine != nil
+    }
 
     func speak() {
         guard let engine = engine else { return }
@@ -48,7 +54,9 @@ struct ContentView: View {
                         Button("Stop") { model.stop() }
                             .buttonStyle(.bordered)
                     }
-                    NavigationLink("Nustatymai") { SettingsView() }
+                    NavigationLink("Nustatymai") {
+                        SettingsView(onDictionaryChanged: { model.reloadEngine() })
+                    }
                 }
                 if !model.ready {
                     Section {
