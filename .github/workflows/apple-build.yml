@@ -68,15 +68,19 @@ jobs:
             || /usr/libexec/PlistBuddy -c "Add :CFBundleIdentifier string $2" "$1/Info.plist"; }
           setid "$APP" com.rosasoft.wintalker
           setid "$APPEX" com.rosasoft.wintalker.GintarasVoice
+          # XML plists (not binary) so re-signers like Sideloadly/AltStore can
+          # always read the bundle id.
+          plutil -convert xml1 "$APP/Info.plist"
+          plutil -convert xml1 "$APPEX/Info.plist"
           echo "app id:  $(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")"
           echo "ext id:  $(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APPEX/Info.plist")"
-          # embed the extension manually, then re-sign bottom-up
+          # embed the extension manually
           mkdir -p "$APP/PlugIns"
           cp -R "$APPEX" "$APP/PlugIns/"
-          codesign --force --sign - --timestamp=none "$APP/PlugIns/$(basename "$APPEX")"
-          [ -d "$APP/Frameworks" ] && for f in "$APP"/Frameworks/*.framework; do
-            codesign --force --sign - --timestamp=none "$f"; done
-          codesign --force --sign - --timestamp=none "$APP"
+          # Strip ALL code signatures -> a clean UNSIGNED bundle, which is what
+          # Sideloadly/AltStore expect to sign from scratch (ad-hoc signatures
+          # confuse re-signers and caused install "Missing bundle ID").
+          find "$APP" -name _CodeSignature -type d -print0 | xargs -0 rm -rf
           rm -rf build/Payload && mkdir -p build/Payload
           cp -R "$APP" build/Payload/
           ( cd build && zip -qry Gintaras-unsigned.ipa Payload )
