@@ -50,13 +50,24 @@ public final class GintarasSpeechSynthesizer: AVSpeechSynthesisProviderAudioUnit
         set { /* fixed voice */ }
     }
 
-    /// Synthesize one request: extract the text, render it to the output format and
-    /// stash it for `internalRenderBlock` to stream out.
+    /// Synthesize one request: extract the text + the SSML prosody (rate / pitch /
+    /// volume that VoiceOver and other clients set), render to the output format
+    /// and stash it for `internalRenderBlock` to stream out.
     public override func synthesizeSpeechRequest(_ speechRequest: AVSpeechSynthesisProviderRequest) {
+        let ssml = speechRequest.ssmlRepresentation
         let text = Self.text(from: speechRequest)
-        let params = GintarasSettings.params(rate: 100, pitch: 100)
+        let pr = Self.prosody(from: ssml)
+        let params = GintarasSettings.params(rate: Int32(pr.rate), pitch: Int32(pr.pitch))
         let fmt = outputBus.format
-        pending = engine?.synthesizeBuffer(text, params: params, format: fmt)
+        let buf = engine?.synthesizeBuffer(text, params: params, format: fmt)
+        // Apply the requested volume (engine output is fixed-amplitude).
+        if let buf = buf, pr.volume < 0.999, let ch = buf.floatChannelData {
+            let g = Float(pr.volume), n = Int(buf.frameLength)
+            for c in 0..<Int(buf.format.channelCount) {
+                let p = ch[c]; for i in 0..<n { p[i] *= g }
+            }
+        }
+        pending = buf
         framePos = 0
     }
 
@@ -95,6 +106,55 @@ public final class GintarasSpeechSynthesizer: AVSpeechSynthesisProviderAudioUnit
             }
             return noErr
         }
+    }
+
+    /// rate/pitch (engine %, 100 = normal) + volume (0…1) requested by the client.
+    struct Prosody { var rate = 100; var pitch = 100; var volume = 1.0 }
+
+    /// Parse the first `<prosody>` tag's rate/pitch/volume from the request SSML.
+    /// VoiceOver and other clients pass speaking rate, pitch and volume this way
+    /// (e.g. `<prosody rate="200%">…`); `AVSpeechUtterance` does NOT expose them
+    /// for SSML-built utterances, so we read the tag ourselves.
+    static func prosody(from ssml: String) -> Prosody {
+        var p = Prosody()
+        guard let open = ssml.range(of: "<prosody", options: .caseInsensitive) else { return p }
+        let rest = ssml[open.upperBound...]
+        guard let gt = rest.range(of: ">") else { return p }
+        let attrs = String(rest[..<gt.lowerBound])
+        if let v = attr("rate", attrs)   { p.rate  = pct(v, ["x-slow":50,"slow":75,"medium":100,"fast":150,"x-fast":200,"default":100]) ?? p.rate }
+        if let v = attr("pitch", attrs)  { p.pitch = pct(v, ["x-low":50,"low":75,"medium":100,"high":150,"x-high":200,"default":100]) ?? p.pitch }
+        if let v = attr("volume", attrs) { p.volume = vol(v) }
+        return p
+    }
+
+    private static func attr(_ name: String, _ s: String) -> String? {
+        guard let re = try? NSRegularExpression(pattern: "\(name)\\s*=\\s*\"([^\"]*)\"", options: .caseInsensitive),
+              let m = re.firstMatch(in: s, range: NSRange(s.startIndex..., in: s)),
+              let r = Range(m.range(at: 1), in: s) else { return nil }
+        return String(s[r])
+    }
+
+    /// SSML rate/pitch -> engine percent (100 = normal). Handles "200%", relative
+    /// "+10%"/"-10%", bare numbers (>10 = percent, else multiplier) and keywords.
+    private static func pct(_ raw: String, _ keywords: [String: Int]) -> Int? {
+        let t = raw.trimmingCharacters(in: .whitespaces).lowercased()
+        if let k = keywords[t] { return k }
+        let relative = t.hasPrefix("+") || t.hasPrefix("-")
+        var s = t; if s.hasSuffix("%") { s.removeLast() }
+        guard let d = Double(s) else { return nil }
+        let v = relative ? 100.0 + d : (t.contains("%") || abs(d) > 10 ? d : d * 100.0)
+        return max(20, min(1000, Int(v.rounded())))
+    }
+
+    /// SSML volume -> linear gain 0…1. Handles "0".."100", "n%", "+/-ndB", keywords.
+    private static func vol(_ raw: String) -> Double {
+        let t = raw.trimmingCharacters(in: .whitespaces).lowercased()
+        let kw: [String: Double] = ["silent":0,"x-soft":0.25,"soft":0.5,"medium":0.75,"loud":1.0,"x-loud":1.0,"default":1.0]
+        if let k = kw[t] { return k }
+        if t.hasSuffix("db"), let db = Double(t.dropLast(2)) { return max(0, min(1, pow(10, db / 20))) }
+        var s = t; if s.hasSuffix("%") { s.removeLast() }
+        guard let d = Double(s) else { return 1.0 }
+        return max(0, min(1, d / 100.0))
     }
 
     /// Plain text to speak for a request. Prefer letting AVFoundation parse the
