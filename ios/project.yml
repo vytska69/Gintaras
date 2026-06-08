@@ -71,8 +71,12 @@ targets:
     dependencies:
       - target: GintarasKit
         embed: true
+      # Build the extension as a dependency but DON'T let Xcode embed it: the
+      # auto-added ValidateEmbeddedBinary step fails on unsigned/ad-hoc CI builds
+      # ("Couldn't load Info dictionary"). The CI assembles the .appex into the
+      # app bundle manually instead.
       - target: GintarasVoice
-        embed: true
+        embed: false
       - framework: GintarasCoreFFI.xcframework
         embed: false
     settings:
