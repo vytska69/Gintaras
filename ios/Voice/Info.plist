@@ -25,7 +25,7 @@
         <key>NSExtensionPointIdentifier</key>
         <string>com.apple.speech.synthesis.provider</string>
         <key>NSExtensionPrincipalClass</key>
-        <string>$(PRODUCT_MODULE_NAME).GintarasSpeechSynthesizer</string>
+        <string>$(PRODUCT_MODULE_NAME).GintarasSpeechSynthesizerFactory</string>
         <key>NSExtensionAttributes</key>
         <dict>
             <key>AudioComponents</key>
@@ -36,7 +36,9 @@
                     <key>description</key>
                     <string>Gintaras Lithuanian voice</string>
                     <key>factoryFunction</key>
-                    <string>$(PRODUCT_MODULE_NAME).GintarasSpeechSynthesizer</string>
+                    <string>$(PRODUCT_MODULE_NAME).GintarasSpeechSynthesizerFactory</string>
+                    <key>sandboxSafe</key>
+                    <true/>
                     <key>manufacturer</key>
                     <string>Rosa</string>
                     <key>type</key>

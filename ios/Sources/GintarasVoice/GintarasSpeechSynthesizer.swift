@@ -53,7 +53,7 @@ public final class GintarasSpeechSynthesizer: AVSpeechSynthesisProviderAudioUnit
     /// Synthesize one request: extract the text, render it to the output format and
     /// stash it for `internalRenderBlock` to stream out.
     public override func synthesizeSpeechRequest(_ speechRequest: AVSpeechSynthesisProviderRequest) {
-        let text = Self.plainText(from: speechRequest.ssmlRepresentation)
+        let text = Self.text(from: speechRequest)
         let params = GintarasSettings.params(rate: 100, pitch: 100)
         let fmt = outputBus.format
         pending = engine?.synthesizeBuffer(text, params: params, format: fmt)
@@ -97,6 +97,18 @@ public final class GintarasSpeechSynthesizer: AVSpeechSynthesisProviderAudioUnit
         }
     }
 
+    /// Plain text to speak for a request. Prefer letting AVFoundation parse the
+    /// SSML (`AVSpeechUtterance(ssmlRepresentation:).speechString`); fall back to
+    /// stripping tags ourselves. Note: `attributedSpeechString` crashes for
+    /// SSML-created utterances, so we use `speechString`.
+    static func text(from request: AVSpeechSynthesisProviderRequest) -> String {
+        if let u = AVSpeechUtterance(ssmlRepresentation: request.ssmlRepresentation) {
+            let s = u.speechString.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !s.isEmpty { return s }
+        }
+        return plainText(from: request.ssmlRepresentation)
+    }
+
     /// Strip SSML tags / decode entities to plain text. The system wraps the
     /// utterance text in `<speak>…</speak>`; a fuller SSML parse (prosody) is a
     /// future refinement.
@@ -111,5 +123,20 @@ public final class GintarasSpeechSynthesizer: AVSpeechSynthesisProviderAudioUnit
             .replacingOccurrences(of: "&quot;", with: "\"")
             .replacingOccurrences(of: "&apos;", with: "'")
         return t.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
+/// Factory the extension system instantiates — it is the class named by
+/// `NSExtensionPrincipalClass` and the `AudioComponents` `factoryFunction` in
+/// Info.plist. An AUv3 audio-unit extension's principal class MUST conform to
+/// `AUAudioUnitFactory`; pointing those keys directly at the
+/// `AVSpeechSynthesisProviderAudioUnit` subclass fails (it has no `init()` and
+/// isn't a factory), so the custom voice never loads. This factory vends the
+/// actual audio unit.
+public final class GintarasSpeechSynthesizerFactory: NSObject, AUAudioUnitFactory {
+    public func beginRequest(with context: NSExtensionContext) {}
+
+    public func createAudioUnit(with componentDescription: AudioComponentDescription) throws -> AUAudioUnit {
+        return try GintarasSpeechSynthesizer(componentDescription: componentDescription, options: [])
     }
 }
