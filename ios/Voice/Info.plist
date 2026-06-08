@@ -7,13 +7,13 @@
     <key>CFBundleDisplayName</key>
     <string>Gintaras balsas</string>
     <key>CFBundleExecutable</key>
-    <string>$(EXECUTABLE_NAME)</string>
+    <string>GintarasVoice</string>
     <key>CFBundleIdentifier</key>
-    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+    <string>com.rosasoft.wintalker.GintarasVoice</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
-    <string>$(PRODUCT_NAME)</string>
+    <string>GintarasVoice</string>
     <key>CFBundlePackageType</key>
     <string>XPC!</string>
     <key>CFBundleShortVersionString</key>
@@ -25,7 +25,7 @@
         <key>NSExtensionPointIdentifier</key>
         <string>com.apple.speech.synthesis.provider</string>
         <key>NSExtensionPrincipalClass</key>
-        <string>$(PRODUCT_MODULE_NAME).GintarasSpeechSynthesizerFactory</string>
+        <string>GintarasVoice.GintarasSpeechSynthesizerFactory</string>
         <key>NSExtensionAttributes</key>
         <dict>
             <key>AudioComponents</key>
@@ -36,7 +36,7 @@
                     <key>description</key>
                     <string>Gintaras Lithuanian voice</string>
                     <key>factoryFunction</key>
-                    <string>$(PRODUCT_MODULE_NAME).GintarasSpeechSynthesizerFactory</string>
+                    <string>GintarasVoice.GintarasSpeechSynthesizerFactory</string>
                     <key>sandboxSafe</key>
                     <true/>
                     <key>manufacturer</key>
