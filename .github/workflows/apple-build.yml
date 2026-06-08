@@ -62,6 +62,14 @@ jobs:
           PROD=build/dd/Build/Products/Release-iphoneos
           APP=$(ls -d "$PROD"/*.app | head -1)
           APPEX=$(ls -d "$PROD"/*.appex | head -1)
+          # Guarantee bundle ids are set (a missing/unexpanded CFBundleIdentifier
+          # makes installers fail with "Missing bundle ID").
+          setid() { /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $2" "$1/Info.plist" 2>/dev/null \
+            || /usr/libexec/PlistBuddy -c "Add :CFBundleIdentifier string $2" "$1/Info.plist"; }
+          setid "$APP" com.rosasoft.wintalker
+          setid "$APPEX" com.rosasoft.wintalker.GintarasVoice
+          echo "app id:  $(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")"
+          echo "ext id:  $(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APPEX/Info.plist")"
           # embed the extension manually, then re-sign bottom-up
           mkdir -p "$APP/PlugIns"
           cp -R "$APPEX" "$APP/PlugIns/"
@@ -110,6 +118,12 @@ jobs:
           PROD=build/dd/Build/Products/Release-maccatalyst
           APP=$(ls -d "$PROD"/*.app | head -1)
           APPEX=$(ls -d "$PROD"/*.appex | head -1)
+          setid() { /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $2" "$1/Contents/Info.plist" 2>/dev/null \
+            || /usr/libexec/PlistBuddy -c "Add :CFBundleIdentifier string $2" "$1/Contents/Info.plist"; }
+          setid "$APP" com.rosasoft.wintalker
+          setid "$APPEX" com.rosasoft.wintalker.GintarasVoice
+          echo "app id:  $(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Contents/Info.plist")"
+          echo "ext id:  $(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APPEX/Contents/Info.plist")"
           mkdir -p "$APP/Contents/PlugIns"
           cp -R "$APPEX" "$APP/Contents/PlugIns/"
           codesign --force --sign - --timestamp=none "$APP/Contents/PlugIns/$(basename "$APPEX")"
