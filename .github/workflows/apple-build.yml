@@ -125,3 +125,35 @@ jobs:
           name: Gintaras-pkg-adhoc
           path: ios/build/pkg/Gintaras-unsigned.pkg
           if-no-files-found: error
+
+  # Publish the .ipa + .pkg to a dedicated Apple release. It uses its own tag
+  # (apple-latest) and never marks itself "Latest", so the Android release is
+  # left untouched.
+  release:
+    needs: [ios-ipa, mac-pkg]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Publish iOS/macOS release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apple-latest
+          name: Gintaras for iOS & macOS (latest)
+          body: |
+            Latest Apple builds from the `Ios` branch.
+
+            - **Gintaras-unsigned.ipa** — iOS. Re-sign to install (AltStore / Sideloadly).
+            - **Gintaras-unsigned.pkg** — Mac Catalyst (ad-hoc signed, not notarized;
+              install with `sudo installer -pkg … -target /` or right-click → Open).
+
+            Not App Store / notarized. See `ios/README.md`.
+          files: |
+            artifacts/**/*.ipa
+            artifacts/**/*.pkg
+          prerelease: true
+          make_latest: false
+          fail_on_unmatched_files: true

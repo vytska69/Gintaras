@@ -74,7 +74,10 @@ Developer account and no repository secrets**:
   it runs on Apple Silicon) and wraps it with `productbuild`.
 
 Both run on every push to `Ios` (touching `ios/` or `core/`) and on
-`workflow_dispatch`, and upload their result as a build artifact.
+`workflow_dispatch`, upload their result as a build artifact, and a third
+`release` job publishes both files to a GitHub Release tagged **`apple-latest`**.
+That release uses its own tag and is never flagged "Latest", so the Android
+release is left untouched.
 
 ### Installing the `.ipa`
 
