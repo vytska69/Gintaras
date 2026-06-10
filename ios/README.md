@@ -59,51 +59,42 @@ Catalyst** (`SUPPORTS_MACCATALYST`), sharing the same code and the same Rust cor
 > toolchain's `build-std`. Set `CATALYST=0 ./build-rust.sh` to skip Catalyst
 > (iOS device + simulator only).
 
-## CI: unsigned `.ipa` + `.pkg` (no Apple account, no secrets)
+## CI: signed build → TestFlight (paid Apple Developer account)
 
-`.github/workflows/apple-build.yml` builds, on a macOS runner with **no Apple
-Developer account and no repository secrets**:
+`.github/workflows/testflight.yml` signs the app **and the GintarasVoice
+extension** with your paid account (App Store Connect API key, automatic cloud
+signing) and uploads the build to **TestFlight** — install on the phone via the
+TestFlight app, no computer, no 7‑day refresh, full App Group + system voice.
 
-- **`ios-ipa`** — an **unsigned iOS `.ipa`**. Builds only the iOS device slice of
-  the Rust core (`IPHONEOS_ONLY=1`, so no simulator/Catalyst → no nightly),
-  archives with `CODE_SIGNING_ALLOWED=NO`, zips `Payload/Gintaras.app` into
-  `Gintaras-unsigned.ipa`.
-- **`mac-pkg`** — an **ad-hoc signed Mac Catalyst `.pkg`**. Builds the Catalyst
-  slice (`MACCATALYST_ONLY=1`, nightly `build-std`), archives unsigned, then
-  ad-hoc signs the app + framework + extension (`codesign --sign -`, required so
-  it runs on Apple Silicon) and wraps it with `productbuild`.
+Runs on `workflow_dispatch` and on version tags (`v*`).
 
-Both run on every push to `Ios` (touching `ios/` or `core/`) and on
-`workflow_dispatch`, upload their result as a build artifact, and a third
-`release` job publishes both files to a GitHub Release tagged **`apple-latest`**.
-That release uses its own tag and is never flagged "Latest", so the Android
-release is left untouched.
+### One‑time setup
 
-### Installing the `.ipa`
+Repository secrets (Settings → Secrets and variables → Actions):
 
-An unsigned `.ipa` **cannot be installed directly** — re-sign it with your own
-identity:
+| Secret | What |
+|---|---|
+| `APPLE_TEAM_ID` | your 10‑char Team ID |
+| `APP_STORE_CONNECT_KEY_ID` | App Store Connect API key id |
+| `APP_STORE_CONNECT_ISSUER_ID` | App Store Connect API issuer id |
+| `APP_STORE_CONNECT_PRIVATE_KEY` | base64 of the API key `.p8` (`base64 -i AuthKey_XXX.p8 \| pbcopy`) |
 
-- **Sideloadly** or **AltStore** — drop in the `.ipa`, sign with your Apple ID
-  (free account works; re-sign every 7 days), install over USB/Wi-Fi. This also
-  re-signs the bundled `GintarasVoice` extension and applies the App Group.
-- **`codesign`/`xcrun`** locally with your own cert + provisioning profile.
+In App Store Connect / Developer portal (once):
+- **App Store Connect → Apps → +** → create an app with bundle id
+  `com.rosasoft.wintalker`.
+- **Users and Access → Integrations → App Store Connect API** → generate a key
+  with role **App Manager**, download the `.p8`.
 
-### Installing the `.pkg`
+App IDs (`com.rosasoft.wintalker`, `.GintarasVoice`), provisioning profiles, the
+App Group (`group.com.rosasoft.wintalker`) and capabilities are created
+automatically by Xcode (`-allowProvisioningUpdates`) on the first run. The build
+number is set to the workflow run number so each upload is unique.
 
-It is ad-hoc signed, **not notarized**, so Gatekeeper will warn:
+### Install via TestFlight (no computer)
 
-```sh
-sudo installer -pkg Gintaras-unsigned.pkg -target /
-# or: right-click the .pkg → Open → Open anyway
-```
-
-> Caveat: ad-hoc signing can't grant the **App Group** / system-voice
-> entitlements (those need a real Apple Team + provisioning). So the Mac app
-> launches and you can preview the voice, but the *system* Speech Synthesis
-> Provider and cross-process settings sharing need proper signing. A signed App
-> Store `.ipa`/`.pkg` pipeline can be added later once a Developer account is in
-> place.
+1. Run the **iOS TestFlight** workflow; wait for processing in App Store Connect.
+2. Install **TestFlight** from the App Store on the iPhone, sign in with the same
+   Apple ID, and install Gintaras from there.
 
 ## Enabling the system voice
 
