@@ -68,6 +68,14 @@ jobs:
             || /usr/libexec/PlistBuddy -c "Add :CFBundleIdentifier string $2" "$1/Info.plist"; }
           setid "$APP" com.rosasoft.wintalker
           setid "$APPEX" com.rosasoft.wintalker.GintarasVoice
+          # Version from the run number so AltStore/SideStore sees each build as an
+          # update (the source advertises the same version).
+          setver() {
+            /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 1.0.${{ github.run_number }}" "$1/Info.plist"
+            /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${{ github.run_number }}" "$1/Info.plist"
+          }
+          setver "$APP"
+          setver "$APPEX"
           # XML plists (not binary) so re-signers like Sideloadly/AltStore can
           # always read the bundle id.
           plutil -convert xml1 "$APP/Info.plist"
@@ -176,6 +184,61 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
+      - name: Generate AltStore/SideStore source (apps.json)
+        run: |
+          set -euo pipefail
+          IPA=$(find artifacts -name '*.ipa' | head -1)
+          SIZE=$(stat -c%s "$IPA")
+          RUN="${{ github.run_number }}"
+          VER="1.0.${RUN}"
+          DATE=$(date -u +%Y-%m-%d)
+          REPO_URL="${{ github.server_url }}/${{ github.repository }}"
+          IPA_URL="${REPO_URL}/releases/download/apple-latest/Gintaras-unsigned.ipa"
+          ICON_URL="https://raw.githubusercontent.com/${{ github.repository }}/Ios/ios/source/icon.png"
+          DESC="Gintaras — lietuviškas tekstas į kalbą (TTS). Įdiegus, sistemoje atsiranda lietuviškas balsas: VoiceOver, Įgarsinamas turinys ir bet kuri programa. Sisteminį balsą įjunk: Settings → Accessibility → Spoken Content → Voices → Lithuanian → Gintaras."
+          cat > apps.json <<EOF
+          {
+            "name": "Gintaras",
+            "subtitle": "Lietuviškas sisteminis balsas",
+            "description": "${DESC}",
+            "iconURL": "${ICON_URL}",
+            "website": "${REPO_URL}",
+            "tintColor": "C16D03",
+            "apps": [
+              {
+                "name": "Gintaras",
+                "bundleIdentifier": "com.rosasoft.wintalker",
+                "developerName": "Rosa Soft",
+                "subtitle": "Lietuviškas sisteminis TTS balsas",
+                "localizedDescription": "${DESC}",
+                "iconURL": "${ICON_URL}",
+                "tintColor": "C16D03",
+                "category": "utilities",
+                "screenshotURLs": [],
+                "appID": "com.rosasoft.wintalker",
+                "version": "${VER}",
+                "versionDate": "${DATE}",
+                "versionDescription": "Naujausias build'as iš Ios šakos.",
+                "downloadURL": "${IPA_URL}",
+                "size": ${SIZE},
+                "minOSVersion": "16.0",
+                "versions": [
+                  {
+                    "version": "${VER}",
+                    "buildVersion": "${RUN}",
+                    "date": "${DATE}",
+                    "localizedDescription": "Naujausias build'as iš Ios šakos.",
+                    "downloadURL": "${IPA_URL}",
+                    "size": ${SIZE},
+                    "minOSVersion": "16.0"
+                  }
+                ]
+              }
+            ],
+            "news": []
+          }
+          EOF
+          python3 -c "import json; json.load(open('apps.json')); print('apps.json valid; version ${VER}, size ${SIZE}')"
       - name: Publish iOS/macOS release
         uses: softprops/action-gh-release@v2
         with:
@@ -187,11 +250,15 @@ jobs:
             - **Gintaras-unsigned.ipa** — iOS. Re-sign to install (AltStore / Sideloadly).
             - **Gintaras-unsigned.pkg** — Mac Catalyst (ad-hoc signed, not notarized;
               install with `sudo installer -pkg … -target /` or right-click → Open).
+            - **apps.json** — AltStore / SideStore source. Add this URL in AltStore/SideStore
+              to install Gintaras and get updates automatically:
+              `${{ github.server_url }}/${{ github.repository }}/releases/download/apple-latest/apps.json`
 
             Not App Store / notarized. See `ios/README.md`.
           files: |
             artifacts/**/*.ipa
             artifacts/**/*.pkg
+            apps.json
           prerelease: true
           make_latest: false
           fail_on_unmatched_files: true
