@@ -1,0 +1,102 @@
+name: App Store Connect upload
+
+# Signs the app + GintarasVoice extension with your PAID Apple Developer account
+# (App Store Connect API key, automatic cloud signing) and uploads the build to
+# App Store Connect. From there you submit it for **Notarization** to distribute
+# via AltStore PAL (App Store Connect -> app -> App Review -> type "Notarization").
+# (The same build also works for TestFlight if you ever want it.)
+#
+# Required repository secrets (Settings -> Secrets and variables -> Actions):
+#   APPLE_TEAM_ID                  your 10-char Team ID
+#   APP_STORE_CONNECT_KEY_ID       App Store Connect API key id
+#   APP_STORE_CONNECT_ISSUER_ID    App Store Connect API issuer id
+#   APP_STORE_CONNECT_PRIVATE_KEY  base64 of the API key .p8 file
+#
+# One-time setup in App Store Connect / Developer portal:
+#   - Create an app record with bundle id com.rosasoft.wintalker.
+#   - Create an App Store Connect API key (Users and Access -> Integrations),
+#     role "App Manager", download the .p8.
+#   - For PAL: agree to the EU Alternative Terms Addendum, and register your
+#     Developer ID with AltStore PAL (see ios/source/README.md).
+#   App IDs, profiles, App Group and capabilities are created automatically by
+#   Xcode (-allowProvisioningUpdates) on first run.
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+jobs:
+  upload:
+    runs-on: macos-15
+    env:
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Install App Store Connect API key
+        env:
+          PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.appstoreconnect/private_keys"
+          KP="$HOME/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8"
+          echo "$PRIVATE_KEY" | base64 --decode > "$KP"
+          echo "ASC_KEY_PATH=$KP" >> "$GITHUB_ENV"
+      - name: Build Rust core (iOS device)
+        working-directory: ios
+        run: IPHONEOS_ONLY=1 ./build-rust.sh
+      - name: Generate Xcode project
+        working-directory: ios
+        run: xcodegen generate
+      - name: Set build number
+        working-directory: ios
+        run: |
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${{ github.run_number }}" App/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${{ github.run_number }}" Voice/Info.plist
+      - name: Archive (App Store signing)
+        working-directory: ios
+        run: |
+          set -euo pipefail
+          xcodebuild archive \
+            -project Gintaras.xcodeproj \
+            -scheme Gintaras \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/Gintaras.xcarchive \
+            -allowProvisioningUpdates \
+            -authenticationKeyID "$KEY_ID" \
+            -authenticationKeyIssuerID "$ISSUER_ID" \
+            -authenticationKeyPath "$ASC_KEY_PATH" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            CODE_SIGN_STYLE=Automatic
+      - name: Export .ipa
+        working-directory: ios
+        run: |
+          set -euo pipefail
+          /usr/libexec/PlistBuddy -c "Add :teamID string $APPLE_TEAM_ID" ExportOptions/AppStore.plist 2>/dev/null \
+            || /usr/libexec/PlistBuddy -c "Set :teamID $APPLE_TEAM_ID" ExportOptions/AppStore.plist
+          xcodebuild -exportArchive \
+            -archivePath build/Gintaras.xcarchive \
+            -exportPath build/ipa \
+            -exportOptionsPlist ExportOptions/AppStore.plist \
+            -allowProvisioningUpdates \
+            -authenticationKeyID "$KEY_ID" \
+            -authenticationKeyIssuerID "$ISSUER_ID" \
+            -authenticationKeyPath "$ASC_KEY_PATH"
+          ls -lh build/ipa/*.ipa
+      - name: Upload to TestFlight
+        working-directory: ios
+        run: |
+          set -euo pipefail
+          IPA=$(ls build/ipa/*.ipa | head -1)
+          xcrun altool --upload-app -f "$IPA" -t ios \
+            --apiKey "$KEY_ID" --apiIssuer "$ISSUER_ID"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Gintaras-appstore-ipa
+          path: ios/build/ipa/*.ipa
+          if-no-files-found: error

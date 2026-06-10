@@ -71,11 +71,11 @@ targets:
     dependencies:
       - target: GintarasKit
         embed: true
-      # Build the extension as a dependency but DON'T let Xcode embed it: the
-      # auto-added ValidateEmbeddedBinary step fails on unsigned/ad-hoc CI builds.
-      # The CI assembles the .appex into the app bundle manually instead.
+      # Properly embed the system-voice extension so Xcode signs + validates it
+      # as part of the app (required for App Store Connect upload + notarization /
+      # AltStore PAL alternative distribution).
       - target: GintarasVoice
-        embed: false
+        embed: true
       - framework: GintarasCoreFFI.xcframework
         embed: false
     settings:
