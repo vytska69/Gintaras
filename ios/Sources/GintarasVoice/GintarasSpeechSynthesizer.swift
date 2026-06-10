@@ -1,21 +1,28 @@
 import AVFoundation
 import AudioToolbox
 import CoreAudio
+import Foundation
 import GintarasKit
 
 /// System-wide Lithuanian voice: an AVSpeechSynthesisProviderAudioUnit (iOS 16+)
 /// that bridges the system speech requests (VoiceOver, any app) to the shared
 /// Gintaras engine. Follows Apple's "AVSpeechSynthesisProviderAudioUnit" pattern
-/// (WWDC22 "Create your own speech synthesizer"); verify bus/format wiring in Xcode.
+/// (WWDC22/23 "Create your own speech synthesizer").
 public final class GintarasSpeechSynthesizer: AVSpeechSynthesisProviderAudioUnit {
 
     private var engine: GintarasEngine?
     private let outputBus: AUAudioUnitBus
     private var busArray: AUAudioUnitBusArray!
 
-    // Rendered audio for the in-flight request (output-bus format) + cursor.
-    private var pending: AVAudioPCMBuffer?
-    private var framePos: AVAudioFramePosition = 0
+    // --- Render handoff -------------------------------------------------------
+    // `synthesizeSpeechRequest` (some system thread) renders the whole utterance
+    // up front into a plain Float buffer; the realtime `internalRenderBlock`
+    // drains it. The buffer is manually managed (no ARC on the audio thread) and
+    // both sides are guarded by a small lock that is held only for the brief
+    // copy/swap — never during synthesis.
+    private let lock = NSLock()
+    private var samples: UnsafeMutableBufferPointer<Float>?
+    private var framePos = 0
 
     private static let voiceIdentifier = "com.rosasoft.wintalker.gintaras"
 
@@ -28,15 +35,9 @@ public final class GintarasSpeechSynthesizer: AVSpeechSynthesisProviderAudioUnit
         engine = GintarasEngine(bundle: Bundle(for: GintarasSpeechSynthesizer.self))
     }
 
+    deinit { samples?.deallocate() }
+
     public override var outputBusses: AUAudioUnitBusArray { busArray }
-
-    public override func allocateRenderResources() throws {
-        try super.allocateRenderResources()
-    }
-
-    public override func deallocateRenderResources() {
-        super.deallocateRenderResources()
-    }
 
     /// The voice(s) this provider offers to the system.
     public override var speechVoices: [AVSpeechSynthesisProviderVoice] {
@@ -50,30 +51,43 @@ public final class GintarasSpeechSynthesizer: AVSpeechSynthesisProviderAudioUnit
         set { /* fixed voice */ }
     }
 
+    /// Replace the pending audio (frees the previous buffer). `new` ownership is
+    /// transferred in; pass nil to clear.
+    private func install(_ new: UnsafeMutableBufferPointer<Float>?) {
+        lock.lock()
+        let old = samples
+        samples = new
+        framePos = 0
+        lock.unlock()
+        old?.deallocate()
+    }
+
     /// Synthesize one request: extract the text + the SSML prosody (rate / pitch /
     /// volume that VoiceOver and other clients set), render to the output format
     /// and stash it for `internalRenderBlock` to stream out.
     public override func synthesizeSpeechRequest(_ speechRequest: AVSpeechSynthesisProviderRequest) {
-        let ssml = speechRequest.ssmlRepresentation
         let text = Self.text(from: speechRequest)
-        let pr = Self.prosody(from: ssml)
+        let pr = Self.prosody(from: speechRequest.ssmlRepresentation)
         let params = GintarasSettings.params(rate: Int32(pr.rate), pitch: Int32(pr.pitch))
-        let fmt = outputBus.format
-        let buf = engine?.synthesizeBuffer(text, params: params, format: fmt)
-        // Apply the requested volume (engine output is fixed-amplitude).
-        if let buf = buf, pr.volume < 0.999, let ch = buf.floatChannelData {
-            let g = Float(pr.volume), n = Int(buf.frameLength)
-            for c in 0..<Int(buf.format.channelCount) {
-                let p = ch[c]; for i in 0..<n { p[i] *= g }
-            }
+        guard let buf = engine?.synthesizeBuffer(text, params: params, format: outputBus.format),
+              let src = buf.floatChannelData, buf.frameLength > 0 else {
+            install(nil)
+            return
         }
-        pending = buf
-        framePos = 0
+        let n = Int(buf.frameLength)
+        let out = UnsafeMutableBufferPointer<Float>.allocate(capacity: n)
+        let ch0 = src[0]
+        if pr.volume < 0.999 {
+            let g = Float(pr.volume)
+            for i in 0..<n { out[i] = ch0[i] * g }   // apply requested volume
+        } else {
+            out.baseAddress!.update(from: ch0, count: n)
+        }
+        install(out)
     }
 
     public override func cancelSpeechRequest() {
-        pending = nil
-        framePos = 0
+        install(nil)
     }
 
     public override var internalRenderBlock: AUInternalRenderBlock {
@@ -82,28 +96,25 @@ public final class GintarasSpeechSynthesizer: AVSpeechSynthesisProviderAudioUnit
             let abl = UnsafeMutableAudioBufferListPointer(outputData)
             let want = Int(frameCount)
 
-            guard let buf = self.pending, let src = buf.floatChannelData else {
-                // nothing to render -> silence + complete
-                for b in abl {
-                    if let p = b.mData { memset(p, 0, Int(b.mDataByteSize)) }
-                }
-                actionFlags.pointee = .offlineUnitRenderAction_Complete
-                return noErr
-            }
-
-            let total = Int(buf.frameLength)
-            let remaining = max(0, total - Int(self.framePos))
-            let n = min(want, remaining)
-            let s = src[0]
+            self.lock.lock()
+            let buf = self.samples
+            let total = buf?.count ?? 0
+            let pos = self.framePos
+            let n = (buf == nil) ? 0 : min(want, max(0, total - pos))
             for ch in abl {
                 guard let dst = ch.mData?.assumingMemoryBound(to: Float.self) else { continue }
-                for i in 0..<n { dst[i] = s[Int(self.framePos) + i] }
-                for i in n..<want { dst[i] = 0 }
+                if let b = buf, n > 0 {
+                    for i in 0..<n { dst[i] = b[pos + i] }
+                }
+                if n < want {
+                    for i in n..<want { dst[i] = 0 }    // pad the tail with silence
+                }
             }
-            self.framePos += AVAudioFramePosition(n)
-            if Int(self.framePos) >= total {
-                actionFlags.pointee = .offlineUnitRenderAction_Complete
-            }
+            self.framePos = pos + n
+            let finished = (buf == nil) || (pos + n >= total)
+            self.lock.unlock()
+
+            if finished { actionFlags.pointee = .offlineUnitRenderAction_Complete }
             return noErr
         }
     }
@@ -128,7 +139,8 @@ public final class GintarasSpeechSynthesizer: AVSpeechSynthesisProviderAudioUnit
     }
 
     private static func attr(_ name: String, _ s: String) -> String? {
-        guard let re = try? NSRegularExpression(pattern: "\(name)\\s*=\\s*\"([^\"]*)\"", options: .caseInsensitive),
+        // value may be in double or single quotes
+        guard let re = try? NSRegularExpression(pattern: "\(name)\\s*=\\s*[\"']([^\"']*)[\"']", options: .caseInsensitive),
               let m = re.firstMatch(in: s, range: NSRange(s.startIndex..., in: s)),
               let r = Range(m.range(at: 1), in: s) else { return nil }
         return String(s[r])
