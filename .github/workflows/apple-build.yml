@@ -1,0 +1,264 @@
+name: Apple build (unsigned .ipa + .pkg)
+
+# Builds, with no Apple account and no secrets:
+#   - an iOS .ipa            (re-sign + sideload: AltStore / Sideloadly)
+#   - a Mac Catalyst .pkg
+# Both are ad-hoc signed (so the bundles are well-formed / run on Apple Silicon)
+# but NOT App Store / notarized — see the install notes in ios/README.md.
+#
+# The GintarasVoice extension is embedded into the app bundle MANUALLY (see
+# project.yml): letting Xcode embed it triggers ValidateEmbeddedBinary, which
+# fails on ad-hoc/unsigned CI builds. Code-sign entitlements (App Group) are
+# dropped for these artifacts and re-applied on re-signing.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [Ios]
+    paths:
+      - "ios/**"
+      - "core/**"
+      - ".github/workflows/apple-build.yml"
+
+env:
+  SIGN_FLAGS: >-
+    CODE_SIGN_STYLE=Manual
+    CODE_SIGN_IDENTITY=-
+    AD_HOC_CODE_SIGNING_ALLOWED=YES
+    CODE_SIGNING_REQUIRED=NO
+    CODE_SIGNING_ALLOWED=YES
+    CODE_SIGN_ENTITLEMENTS=
+    PROVISIONING_PROFILE_SPECIFIER=
+
+jobs:
+  ios-ipa:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Build Rust core (iOS device only)
+        working-directory: ios
+        run: IPHONEOS_ONLY=1 ./build-rust.sh
+      - name: Generate Xcode project
+        working-directory: ios
+        run: xcodegen generate
+      - name: Build (ad-hoc signed)
+        working-directory: ios
+        run: |
+          set -euo pipefail
+          xcodebuild build \
+            -project Gintaras.xcodeproj \
+            -scheme Gintaras \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build/dd \
+            $SIGN_FLAGS \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }}
+      - name: Assemble & package .ipa
+        working-directory: ios
+        run: |
+          set -euo pipefail
+          PROD=build/dd/Build/Products/Release-iphoneos
+          APP=$(ls -d "$PROD"/*.app | head -1)
+          APPEX=$(ls -d "$PROD"/*.appex | head -1)
+          # Guarantee bundle ids are set (a missing/unexpanded CFBundleIdentifier
+          # makes installers fail with "Missing bundle ID").
+          setid() { /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $2" "$1/Info.plist" 2>/dev/null \
+            || /usr/libexec/PlistBuddy -c "Add :CFBundleIdentifier string $2" "$1/Info.plist"; }
+          setid "$APP" com.rosasoft.wintalker
+          setid "$APPEX" com.rosasoft.wintalker.GintarasVoice
+          # Version from the run number so AltStore/SideStore sees each build as an
+          # update (the source advertises the same version).
+          setver() {
+            /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 1.0.${{ github.run_number }}" "$1/Info.plist"
+            /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${{ github.run_number }}" "$1/Info.plist"
+          }
+          setver "$APP"
+          setver "$APPEX"
+          # XML plists (not binary) so re-signers like Sideloadly/AltStore can
+          # always read the bundle id.
+          plutil -convert xml1 "$APP/Info.plist"
+          plutil -convert xml1 "$APPEX/Info.plist"
+          echo "app id:  $(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")"
+          echo "ext id:  $(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APPEX/Info.plist")"
+          # embed the extension manually
+          mkdir -p "$APP/PlugIns"
+          cp -R "$APPEX" "$APP/PlugIns/"
+          # Strip ALL code signatures -> a clean UNSIGNED bundle, which is what
+          # Sideloadly/AltStore expect to sign from scratch (ad-hoc signatures
+          # confuse re-signers and caused install "Missing bundle ID").
+          find "$APP" -name _CodeSignature -type d -print0 | xargs -0 rm -rf
+          rm -rf build/Payload && mkdir -p build/Payload
+          cp -R "$APP" build/Payload/
+          ( cd build && zip -qry Gintaras-unsigned.ipa Payload )
+          ls -lh build/Gintaras-unsigned.ipa
+      - name: Verify .ipa bundle (ground truth)
+        working-directory: ios
+        run: |
+          set -euo pipefail
+          rm -rf verify && mkdir verify
+          ( cd verify && unzip -q ../build/Gintaras-unsigned.ipa )
+          APP=$(ls -d verify/Payload/*.app | head -1)
+          echo "== Payload tree (depth 3) =="
+          find verify/Payload -maxdepth 3 | sort
+          echo "== app Info.plist =="
+          plutil -p "$APP/Info.plist"
+          echo "== appex Info.plist =="
+          plutil -p "$APP"/PlugIns/*.appex/Info.plist
+          echo "== hard checks =="
+          test -f "$APP/Info.plist"
+          EXE=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP/Info.plist")
+          test -f "$APP/$EXE" && echo "executable OK: $EXE"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist"
+          plutil -lint "$APP/Info.plist"
+          plutil -lint "$APP"/PlugIns/*.appex/Info.plist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Gintaras-ipa-unsigned
+          path: ios/build/Gintaras-unsigned.ipa
+          if-no-files-found: error
+
+  mac-pkg:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Build Rust core (Mac Catalyst only)
+        working-directory: ios
+        run: MACCATALYST_ONLY=1 ./build-rust.sh
+      - name: Generate Xcode project
+        working-directory: ios
+        run: xcodegen generate
+      - name: Build Mac Catalyst (ad-hoc signed)
+        working-directory: ios
+        run: |
+          set -euo pipefail
+          xcodebuild build \
+            -project Gintaras.xcodeproj \
+            -scheme Gintaras \
+            -configuration Release \
+            -destination 'generic/platform=macOS,variant=Mac Catalyst' \
+            -derivedDataPath build/dd \
+            $SIGN_FLAGS \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }}
+      - name: Assemble & package .pkg
+        working-directory: ios
+        run: |
+          set -euo pipefail
+          PROD=build/dd/Build/Products/Release-maccatalyst
+          APP=$(ls -d "$PROD"/*.app | head -1)
+          APPEX=$(ls -d "$PROD"/*.appex | head -1)
+          setid() { /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $2" "$1/Contents/Info.plist" 2>/dev/null \
+            || /usr/libexec/PlistBuddy -c "Add :CFBundleIdentifier string $2" "$1/Contents/Info.plist"; }
+          setid "$APP" com.rosasoft.wintalker
+          setid "$APPEX" com.rosasoft.wintalker.GintarasVoice
+          echo "app id:  $(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Contents/Info.plist")"
+          echo "ext id:  $(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APPEX/Contents/Info.plist")"
+          mkdir -p "$APP/Contents/PlugIns"
+          cp -R "$APPEX" "$APP/Contents/PlugIns/"
+          codesign --force --sign - --timestamp=none "$APP/Contents/PlugIns/$(basename "$APPEX")"
+          [ -d "$APP/Contents/Frameworks" ] && for f in "$APP"/Contents/Frameworks/*.framework; do
+            codesign --force --sign - --timestamp=none "$f"; done
+          codesign --force --sign - --timestamp=none "$APP"
+          codesign --verify --strict "$APP" && echo "ad-hoc signature OK"
+          mkdir -p build/pkg
+          productbuild --component "$APP" /Applications build/pkg/Gintaras-unsigned.pkg
+          ls -lh build/pkg/Gintaras-unsigned.pkg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Gintaras-pkg-adhoc
+          path: ios/build/pkg/Gintaras-unsigned.pkg
+          if-no-files-found: error
+
+  # Publish the .ipa + .pkg to a dedicated Apple release. It uses its own tag
+  # (apple-latest) and never marks itself "Latest", so the Android release is
+  # left untouched.
+  release:
+    needs: [ios-ipa, mac-pkg]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Generate AltStore/SideStore source (apps.json)
+        run: |
+          set -euo pipefail
+          IPA=$(find artifacts -name '*.ipa' | head -1)
+          SIZE=$(stat -c%s "$IPA")
+          RUN="${{ github.run_number }}"
+          VER="1.0.${RUN}"
+          DATE=$(date -u +%Y-%m-%d)
+          REPO_URL="${{ github.server_url }}/${{ github.repository }}"
+          IPA_URL="${REPO_URL}/releases/download/apple-latest/Gintaras-unsigned.ipa"
+          ICON_URL="https://raw.githubusercontent.com/${{ github.repository }}/Ios/ios/source/icon.png"
+          DESC="Gintaras — lietuviškas tekstas į kalbą (TTS). Įdiegus, sistemoje atsiranda lietuviškas balsas: VoiceOver, Įgarsinamas turinys ir bet kuri programa. Sisteminį balsą įjunk: Settings → Accessibility → Spoken Content → Voices → Lithuanian → Gintaras."
+          cat > apps.json <<EOF
+          {
+            "name": "Gintaras",
+            "subtitle": "Lietuviškas sisteminis balsas",
+            "description": "${DESC}",
+            "iconURL": "${ICON_URL}",
+            "website": "${REPO_URL}",
+            "tintColor": "C16D03",
+            "apps": [
+              {
+                "name": "Gintaras",
+                "bundleIdentifier": "com.rosasoft.wintalker",
+                "developerName": "Rosa Soft",
+                "subtitle": "Lietuviškas sisteminis TTS balsas",
+                "localizedDescription": "${DESC}",
+                "iconURL": "${ICON_URL}",
+                "tintColor": "C16D03",
+                "category": "utilities",
+                "screenshotURLs": [],
+                "appID": "com.rosasoft.wintalker",
+                "version": "${VER}",
+                "versionDate": "${DATE}",
+                "versionDescription": "Naujausias build'as iš Ios šakos.",
+                "downloadURL": "${IPA_URL}",
+                "size": ${SIZE},
+                "minOSVersion": "16.0",
+                "versions": [
+                  {
+                    "version": "${VER}",
+                    "buildVersion": "${RUN}",
+                    "date": "${DATE}",
+                    "localizedDescription": "Naujausias build'as iš Ios šakos.",
+                    "downloadURL": "${IPA_URL}",
+                    "size": ${SIZE},
+                    "minOSVersion": "16.0"
+                  }
+                ]
+              }
+            ],
+            "news": []
+          }
+          EOF
+          python3 -c "import json; json.load(open('apps.json')); print('apps.json valid; version ${VER}, size ${SIZE}')"
+      - name: Publish iOS/macOS release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apple-latest
+          name: Gintaras for iOS & macOS (latest)
+          body: |
+            Latest Apple builds from the `Ios` branch.
+
+            - **Gintaras-unsigned.ipa** — iOS. Re-sign to install (AltStore / Sideloadly).
+            - **Gintaras-unsigned.pkg** — Mac Catalyst (ad-hoc signed, not notarized;
+              install with `sudo installer -pkg … -target /` or right-click → Open).
+            - **apps.json** — AltStore / SideStore source. Add this URL in AltStore/SideStore
+              to install Gintaras and get updates automatically:
+              `${{ github.server_url }}/${{ github.repository }}/releases/download/apple-latest/apps.json`
+
+            Not App Store / notarized. See `ios/README.md`.
+          files: |
+            artifacts/**/*.ipa
+            artifacts/**/*.pkg
+            apps.json
+          prerelease: true
+          make_latest: false
+          fail_on_unmatched_files: true
