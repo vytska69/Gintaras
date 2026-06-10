@@ -85,6 +85,26 @@ jobs:
           cp -R "$APP" build/Payload/
           ( cd build && zip -qry Gintaras-unsigned.ipa Payload )
           ls -lh build/Gintaras-unsigned.ipa
+      - name: Verify .ipa bundle (ground truth)
+        working-directory: ios
+        run: |
+          set -euo pipefail
+          rm -rf verify && mkdir verify
+          ( cd verify && unzip -q ../build/Gintaras-unsigned.ipa )
+          APP=$(ls -d verify/Payload/*.app | head -1)
+          echo "== Payload tree (depth 3) =="
+          find verify/Payload -maxdepth 3 | sort
+          echo "== app Info.plist =="
+          plutil -p "$APP/Info.plist"
+          echo "== appex Info.plist =="
+          plutil -p "$APP"/PlugIns/*.appex/Info.plist
+          echo "== hard checks =="
+          test -f "$APP/Info.plist"
+          EXE=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP/Info.plist")
+          test -f "$APP/$EXE" && echo "executable OK: $EXE"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist"
+          plutil -lint "$APP/Info.plist"
+          plutil -lint "$APP"/PlugIns/*.appex/Info.plist
       - uses: actions/upload-artifact@v4
         with:
           name: Gintaras-ipa-unsigned
