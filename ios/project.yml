@@ -71,11 +71,11 @@ targets:
     dependencies:
       - target: GintarasKit
         embed: true
-      # Properly embed the system-voice extension (Xcode signs + validates it).
-      # This requires real code signing (App Store / development), which the
-      # TestFlight workflow provides.
+      # Build the extension as a dependency but DON'T let Xcode embed it: the
+      # auto-added ValidateEmbeddedBinary step fails on unsigned/ad-hoc CI builds.
+      # The CI assembles the .appex into the app bundle manually instead.
       - target: GintarasVoice
-        embed: true
+        embed: false
       - framework: GintarasCoreFFI.xcframework
         embed: false
     settings:
